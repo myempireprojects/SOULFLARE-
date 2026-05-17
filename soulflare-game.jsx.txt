@@ -1,0 +1,1337 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+
+// ══════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════
+const MODES = {
+  EASY:  { label:"Easy Mode",       sub:"Where love begins gently",   emoji:"🌸", color:"#e879a0" },
+  LOVE:  { label:"Love Mode",       sub:"Where souls open up",        emoji:"❤️", color:"#c2185b" },
+  CRAZY: { label:"Crazy Love Mode", sub:"Where love burns brightest", emoji:"🔥", color:"#ff4500" },
+};
+const TOTAL = 24;
+
+// Enforces card-type variety — no more "questions only"
+const SEQ = {
+  EASY:  ["fun","truth","activity","bible","puzzle","fun"],
+  LOVE:  ["truth","activity","vulnerability","affection","revelation","bible","trust","activity"],
+  CRAZY: ["truth","spicy","trust","puzzle","revelation","spicy","activity","trust","spicy","revelation"],
+};
+
+const CE = {fun:"🎉",truth:"🔮",activity:"🎯",bible:"✝️",spicy:"🌶️",trust:"🛡️",
+            revelation:"🌟",puzzle:"🧩",vulnerability:"💙",affection:"💕",partnership:"🤝"};
+
+// ── Pronoun engine — no more "they/them/their" for gendered players ──
+const PR = {
+  male:   { sub:"he",   obj:"him",  pos:"his" },
+  female: { sub:"she",  obj:"her",  pos:"her" },
+  other:  { sub:"they", obj:"them", pos:"their" },
+};
+function inj(t, p1, p2) {
+  if (!t) return "";
+  const a = PR[p1?.gender] || PR.other;
+  const b = PR[p2?.gender] || PR.other;
+  return t
+    .replace(/{p1}/g,  p1?.name || "Partner 1")
+    .replace(/{p2}/g,  p2?.name || "Partner 2")
+    .replace(/{sub1}/g, a.sub).replace(/{obj1}/g, a.obj).replace(/{pos1}/g, a.pos)
+    .replace(/{sub2}/g, b.sub).replace(/{obj2}/g, b.obj).replace(/{pos2}/g, b.pos)
+    .replace(/{Sub1}/g, a.sub[0].toUpperCase() + a.sub.slice(1))
+    .replace(/{Sub2}/g, b.sub[0].toUpperCase() + b.sub.slice(1));
+}
+const getMode = r => r < 6 ? "EASY" : r < 14 ? "LOVE" : "CRAZY";
+const getMR   = r => r < 6 ? r : r < 14 ? r - 6 : r - 14;
+const getCat  = r => SEQ[getMode(r)][getMR(r)] || "truth";
+
+// ══════════════════════════════════════════
+// OFFLINE CARD DATABASE — 50+ cards
+// (pronoun templates: {p1}{p2}{sub1}{obj1}{pos1}{sub2}{obj2}{pos2}{Sub1}{Sub2})
+// ══════════════════════════════════════════
+const CARDS = [
+  // ── EASY · FUN ──
+  {id:"ef1",mode:"EASY",cat:"fun",hot:1,dur:null,
+   title:"Tiny Habits",
+   inst:"{p1}, name one tiny habit of {p2} that secretly makes you smile every time {sub2} does it.",
+   fu:"Hold eye contact for 5 full seconds without breaking."},
+  {id:"ef2",mode:"EASY",cat:"fun",hot:1,dur:30,
+   title:"Impression Game",
+   inst:"{p1}, do your best impression of {p2} for 30 seconds. {p2} may react — but cannot stop {obj1}!",
+   fu:"Both score it out of 10."},
+  {id:"ef3",mode:"EASY",cat:"fun",hot:2,dur:null,
+   title:"Alter Ego",
+   inst:"{p1}, if {p2} were a fictional character, who would {sub2} be — and why? Be specific.",
+   fu:"{p2}, agree or disagree — with a smile."},
+
+  // ── EASY · TRUTH ──
+  {id:"et1",mode:"EASY",cat:"truth",hot:2,dur:null,
+   title:"First Impression",
+   inst:"{p1}, what was your very first honest thought when you saw {p2} for the very first time?",
+   fu:"{p2}, was {sub1} right — or completely off?"},
+  {id:"et2",mode:"EASY",cat:"truth",hot:2,dur:null,
+   title:"Best Part of My Day",
+   inst:"{p1}, which moment of any average day involving {p2} is your absolute favourite? Describe it.",
+   fu:"{p2}, did you know this? Respond honestly."},
+  {id:"et3",mode:"EASY",cat:"truth",hot:2,dur:null,
+   title:"Dream Date",
+   inst:"{p2}, describe your perfect dream date with {p1} in vivid detail — location, time, mood, everything.",
+   fu:"{p1}, which part excites you most?"},
+
+  // ── EASY · ACTIVITY ──
+  {id:"ea1",mode:"EASY",cat:"activity",hot:2,dur:45,
+   title:"Silent Stare",
+   inst:"Sit knee-to-knee. Maintain unbroken eye contact for 45 seconds — no laughing, no looking away.",
+   fu:"Whoever broke first gives the other one genuine compliment."},
+  {id:"ea2",mode:"EASY",cat:"activity",hot:2,dur:30,
+   title:"Mirror Mirror",
+   inst:"{p1} leads slow movements for 30 seconds — {p2} mirrors every move precisely. Then switch!",
+   fu:"Name one thing you noticed about each other while doing this."},
+  {id:"ea3",mode:"EASY",cat:"activity",hot:2,dur:60,
+   title:"Portrait Artists",
+   inst:"Each partner draws the other's face — without lifting the pen AND without looking at the paper. 60 seconds each.",
+   fu:"React to each other's artwork. No defending your technique."},
+  {id:"ea4",mode:"EASY",cat:"activity",hot:2,dur:null,
+   title:"Thumb Battle",
+   inst:"Best of 3 thumb-wrestling rounds. The loser must reveal one compliment they have been secretly holding back.",
+   fu:"Winner earns the right to ask one question of their choice."},
+
+  // ── EASY · BIBLE ──
+  {id:"eb1",mode:"EASY",cat:"bible",hot:1,dur:null,
+   title:"Prayer Moment",
+   inst:"Together name one thing you are grateful for about each other. Then each say a short prayer for the other — out loud.",
+   fu:"Hold hands for 10 seconds in silence afterward."},
+  {id:"eb2",mode:"EASY",cat:"bible",hot:1,dur:null,
+   title:"Love Scripture",
+   inst:"Recite 1 Corinthians 13:4-7 slowly to each other — 'Love is patient, love is kind…' Speak each line as if for the first time.",
+   fu:"Which quality do you most want to grow in this year?"},
+
+  // ── EASY · PUZZLE ──
+  {id:"ep1",mode:"EASY",cat:"puzzle",hot:1,dur:null,pid:"ez1",
+   title:"Word of Love",
+   inst:"Work together to unscramble this word. Both must agree before you answer!",
+   fu:"💎 +10 SoulFlare Points earned!"},
+  {id:"ep2",mode:"EASY",cat:"puzzle",hot:1,dur:null,pid:"ez2",
+   title:"Emoji Love Code",
+   inst:"Decode this emoji sequence together. What phrase does it spell out?",
+   fu:"💎 +10 SoulFlare Points earned!"},
+  {id:"ep3",mode:"EASY",cat:"puzzle",hot:1,dur:null,pid:"ez3",
+   title:"Love Riddle",
+   inst:"Solve this riddle together. You may discuss — but only one final answer is allowed.",
+   fu:"💎 +10 SoulFlare Points earned!"},
+
+  // ── LOVE · TRUTH ──
+  {id:"lt1",mode:"LOVE",cat:"truth",hot:4,dur:null,
+   title:"Safe Place",
+   inst:"{p1}, describe a specific moment when {p2} made you feel completely emotionally safe.",
+   fu:"{p2}, what do you remember most about that moment?"},
+  {id:"lt2",mode:"LOVE",cat:"truth",hot:4,dur:null,
+   title:"Unspoken Thought",
+   inst:"{p1}, share one thought or feeling about {p2} you have never said out loud.",
+   fu:"Take a breath, {p2}. Respond with only warmth — no judgement."},
+  {id:"lt3",mode:"LOVE",cat:"truth",hot:5,dur:null,
+   title:"Turning Point",
+   inst:"{p2}, describe the exact moment you realised {p1} was different from everyone else.",
+   fu:"{p1}, had {sub2} told you this before? How does it feel hearing it now?"},
+
+  // ── LOVE · ACTIVITY ──
+  {id:"la1",mode:"LOVE",cat:"activity",hot:5,dur:60,
+   title:"Slow Dance",
+   inst:"Stand close together and slow dance for 60 seconds — no music needed. Let the silence guide you.",
+   fu:"Whisper one thing you never want your relationship to lose."},
+  {id:"la2",mode:"LOVE",cat:"activity",hot:4,dur:null,
+   title:"Palm Reading",
+   inst:"{p1}, hold {pos2} hand gently. Trace each line on {pos2} palm slowly and invent a love story from what you 'see'.",
+   fu:"{p2}, share one part of that story you wish were true."},
+  {id:"la3",mode:"LOVE",cat:"activity",hot:5,dur:90,
+   title:"Back-to-Back",
+   inst:"Sit back-to-back. {p1} describes a feeling in words — {p2} draws it on paper without speaking. 90 seconds.",
+   fu:"Compare what was described and what was drawn. Discuss the gap."},
+
+  // ── LOVE · VULNERABILITY ──
+  {id:"lv1",mode:"LOVE",cat:"vulnerability",hot:5,dur:null,
+   title:"Quiet Fear",
+   inst:"{p1}, share one quiet fear you carry about love, relationships, or your future together.",
+   fu:"{p2} responds only with reassurance — no advice, no problem-solving."},
+  {id:"lv2",mode:"LOVE",cat:"vulnerability",hot:5,dur:null,
+   title:"My Weak Spot",
+   inst:"{p2}, share one way you sometimes make it hard for others to love you — and name what {p1} does that helps you open anyway.",
+   fu:"{p1}, affirm {obj2} with one specific example of how {sub2} has grown."},
+
+  // ── LOVE · AFFECTION ──
+  {id:"laf1",mode:"LOVE",cat:"affection",hot:5,dur:120,
+   title:"Love Flood",
+   inst:"{p1}, for 2 full minutes say everything you love about {p2} — do not stop, do not repeat. Just love.",
+   fu:"{p2}, your only response is: 'I receive all of that.'"},
+  {id:"laf2",mode:"LOVE",cat:"affection",hot:4,dur:null,
+   title:"Forehead Moment",
+   inst:"{p1}, stand before {p2}. Hold {pos2} face gently in both hands. Press your forehead to {pos2}. Stay in silence for 20 seconds.",
+   fu:"Both say one word describing what you felt in that moment."},
+  {id:"laf3",mode:"LOVE",cat:"affection",hot:5,dur:30,
+   title:"Long Embrace",
+   inst:"Give each other a genuine, unhurried hug. Hold on for 30 full seconds — do not rush, do not let go early.",
+   fu:"{p1}, what was running through your mind during that hug?"},
+
+  // ── LOVE · REVELATION ──
+  {id:"lr1",mode:"LOVE",cat:"revelation",hot:5,dur:null,
+   title:"Hidden Admiration",
+   inst:"{p2}, reveal something about {p1} you have secretly admired but never mentioned. Be specific.",
+   fu:"{p1}, look into {pos2} eyes and say: 'Thank you for seeing me.'"},
+  {id:"lr2",mode:"LOVE",cat:"revelation",hot:5,dur:null,
+   title:"What You Don't Know",
+   inst:"{p1}, share something personal about yourself that {p2} may not fully know — a fear, a dream, or a wound.",
+   fu:"{p2}, listen without interrupting. When {sub1} finishes, say: 'I'm glad you told me.'"},
+  {id:"lr3",mode:"LOVE",cat:"revelation",hot:5,dur:null,
+   title:"The Real Story",
+   inst:"{p1}, reveal what was really going through your mind during one of your most memorable moments together.",
+   fu:"{p2}, share what {sub2} was thinking in that exact same moment."},
+
+  // ── LOVE · BIBLE ──
+  {id:"lb1",mode:"LOVE",cat:"bible",hot:3,dur:null,
+   title:"Proverbs on Love",
+   inst:"Together read Proverbs 17:17 — 'A friend loves at all times.' Discuss: how does this describe your relationship right now?",
+   fu:"Each name one specific way you will live this verse for the other."},
+  {id:"lb2",mode:"LOVE",cat:"bible",hot:3,dur:null,
+   title:"Faith in Love",
+   inst:"{p1}, pray out loud for {p2} — speak into {pos2} gifts, dreams, and what you believe God is doing in {pos2} life.",
+   fu:"{p2}, share one thing you believe God is calling you both into together."},
+
+  // ── LOVE · TRUST ──
+  {id:"ltr1",mode:"LOVE",cat:"trust",hot:5,dur:null,
+   title:"Eyes Closed",
+   inst:"{p2}, close your eyes. {p1}, guide {obj2} gently to a new spot in the room using only soft touch — no words. Then whisper something {obj2} should know.",
+   fu:"Switch roles."},
+  {id:"ltr2",mode:"LOVE",cat:"trust",hot:5,dur:null,
+   title:"Full Honesty",
+   inst:"{p1}, complete this sentence out loud: 'The one thing I am most afraid to tell you is…'",
+   fu:"{p2}, hold {pos1} hand while {sub1} speaks. Do not let go."},
+  {id:"ltr3",mode:"LOVE",cat:"trust",hot:4,dur:null,
+   title:"I Trust You Because",
+   inst:"{p1}, name three specific moments that built your trust in {p2}. Be detailed — no rushing.",
+   fu:"{p2}, which of those three meant the most — and why?"},
+
+  // ── CRAZY · TRUTH ──
+  {id:"ct1",mode:"CRAZY",cat:"truth",hot:7,dur:null,
+   title:"Deepest Craving",
+   inst:"{p1}, what does {p2} do that makes you feel most desired? Be honest and specific — no softening.",
+   fu:"{p2}, commit out loud to doing that more intentionally."},
+  {id:"ct2",mode:"CRAZY",cat:"truth",hot:7,dur:null,
+   title:"Unfiltered",
+   inst:"{p1}, say one thing you have always wanted to say to {p2} but held back. No filter. Right now.",
+   fu:"{p2}, listen fully. Then say: 'I hear you. I'm not going anywhere.'"},
+
+  // ── CRAZY · SPICY ──
+  {id:"cs1",mode:"CRAZY",cat:"spicy",hot:7,dur:90,
+   title:"Close Enough",
+   inst:"Sit extremely close — foreheads nearly touching. No speaking. No moving. Breathe together for 90 seconds. Let the tension build.",
+   fu:"Whisper what you were thinking when time runs out."},
+  {id:"cs2",mode:"CRAZY",cat:"spicy",hot:8,dur:null,
+   title:"Burning Confession",
+   inst:"{p1}, tell {p2} one desire, fantasy, or craving you have never fully expressed out loud.",
+   fu:"Discuss openly and honestly whether it could realistically become part of your relationship."},
+  {id:"cs3",mode:"CRAZY",cat:"spicy",hot:8,dur:null,
+   title:"What I Want",
+   inst:"{p2}, describe exactly what you want {p1} to do — emotionally, physically, romantically — right now. Nothing held back.",
+   fu:"{p1}, name one thing from that list you will do before this night is over."},
+  {id:"cs4",mode:"CRAZY",cat:"spicy",hot:9,dur:null,
+   title:"Say It Slowly",
+   inst:"{p1}, look into {pos2} eyes and describe slowly and deliberately exactly what {sub1} finds irresistible about {obj2}.",
+   fu:"{p2} says only: 'Tell me more.'"},
+  {id:"cs5",mode:"CRAZY",cat:"spicy",hot:9,dur:null,
+   title:"Slow Touch",
+   inst:"{p1}, trace {pos2} arm from shoulder to fingertips with deliberate, unhurried intention. {p2}, close your eyes and feel every movement.",
+   fu:"Switch — {p2} now traces {pos1} arm the same way."},
+  {id:"cs6",mode:"CRAZY",cat:"spicy",hot:10,dur:null,
+   title:"The Question",
+   inst:"{p1}, ask {p2} the one intimate or romantic question you have always been too shy to ask.",
+   fu:"{p2} answers with total honesty — nothing held back."},
+
+  // ── CRAZY · TRUST ──
+  {id:"ctr1",mode:"CRAZY",cat:"trust",hot:8,dur:null,
+   title:"Hidden Truth",
+   inst:"{p1}, reveal something emotionally intimate that you have struggled to say — something {p2} needs to know about you.",
+   fu:"{p2} listens completely. No interruptions. When {sub1} finishes, {sub2} says only: 'I love you.'"},
+  {id:"ctr2",mode:"CRAZY",cat:"trust",hot:8,dur:null,
+   title:"Let Me In",
+   inst:"{p2}, share one part of your past that shaped who you are today — something you rarely tell anyone.",
+   fu:"{p1}, respond with one way that story makes you love {obj2} more deeply."},
+  {id:"ctr3",mode:"CRAZY",cat:"trust",hot:7,dur:null,
+   title:"Fall For Me",
+   inst:"{p1} stands behind {p2}. {p2} closes {pos2} eyes and falls backward slowly — trusting {p1} to catch {obj2}. Do this three times.",
+   fu:"Discuss: where else in your relationship do you fall and trust the other to catch you?"},
+  {id:"ctr4",mode:"CRAZY",cat:"trust",hot:9,dur:null,
+   title:"No More Walls",
+   inst:"{p1}, confess one protective wall you have built that you want to tear down — for {p2}.",
+   fu:"{p2}, tell {obj1} exactly how you will help {obj1} feel safe without that wall."},
+
+  // ── CRAZY · PUZZLE ──
+  {id:"cp1",mode:"CRAZY",cat:"puzzle",hot:6,dur:60,pid:"cz1",
+   title:"Love Cipher",
+   inst:"Decode this secret message together. You have 60 seconds — the clock is running!",
+   fu:"💎 +20 SoulFlare Points earned!"},
+  {id:"cp2",mode:"CRAZY",cat:"puzzle",hot:6,dur:null,pid:"cz2",
+   title:"Double Meaning",
+   inst:"This riddle has two answers — one simple, one deeper about your relationship. Find both together.",
+   fu:"💎 +20 SoulFlare Points earned!"},
+
+  // ── CRAZY · REVELATION ──
+  {id:"cr1",mode:"CRAZY",cat:"revelation",hot:8,dur:null,
+   title:"My Everything",
+   inst:"{p1}, describe what life without {p2} would feel like. Be completely honest — do not soften it.",
+   fu:"{p2} responds: 'That's why I choose you, every single day.'"},
+  {id:"cr2",mode:"CRAZY",cat:"revelation",hot:9,dur:null,
+   title:"If Tonight Were Last",
+   inst:"{p2}, if tonight were your last night together, what would you want {p1} to know? Say it all.",
+   fu:"{p1}, respond with everything {sub1} would want {p2} to know in return."},
+  {id:"cr3",mode:"CRAZY",cat:"revelation",hot:8,dur:null,
+   title:"The Real You",
+   inst:"{p1}, share one version of yourself that you hide from the world — but want {p2} to fully know.",
+   fu:"{p2}, affirm that part of {obj1}. Name specifically what is beautiful about it."},
+
+  // ── CRAZY · ACTIVITY ──
+  {id:"ca1",mode:"CRAZY",cat:"activity",hot:8,dur:null,
+   title:"Eyes Only",
+   inst:"{p1}, guide {p2} across the room using only eye contact and facial expression — no words, no touch. {p2} follows completely.",
+   fu:"Discuss: where does communication go deeper than words between the two of you?"},
+  {id:"ca2",mode:"CRAZY",cat:"activity",hot:9,dur:null,
+   title:"Whisper Map",
+   inst:"{p1}, guide {p2} to sit with eyes closed. Whisper slowly into {pos2} ear every place you have ever dreamed of taking {obj2}. Make it vivid.",
+   fu:"{p2}, name the one destination that made your heart race the most."},
+];
+
+// ══════════════════════════════════════════
+// PUZZLE DATABASE
+// ══════════════════════════════════════════
+const PUZZLES = {
+  ez1:{q:"Unscramble this word:",         clue:"TRSUT",
+       ans:"TRUST",  hint:"The foundation of every relationship",
+       opts:["TURNS","TRUST","TRUSS","TUTOR"], pts:10},
+  ez2:{q:"What phrase do these emojis spell?", clue:"❤️ + 🔑 → 🚪",
+       ans:"Love unlocks every door", hint:"Think about what love opens",
+       opts:["Love is a house","Love unlocks every door","Keys to my heart","Open your heart"], pts:10},
+  ez3:{q:"Solve this riddle together:",
+       clue:"The more I am shared between two people, the more of me there is. I cannot be bought or sold. What am I?",
+       ans:"Love", hint:"It multiplies when given freely",
+       opts:["Time","Money","Love","Joy"], pts:10},
+  cz1:{q:"Decode this message (A=1, B=2, C=3…):",
+       clue:"9 · 12 · 15 · 22 · 5 · 25 · 15 · 21",
+       ans:"I LOVE YOU", hint:"Count each number's letter position",
+       opts:["I NEED YOU","I LOVE YOU","I WANT YOU","I MISS YOU"], pts:20},
+  cz2:{q:"Two answers — one simple, one deep about your love:",
+       clue:"I have no body, yet I am deeply felt. I have no voice, yet I speak louder than words. What am I?",
+       ans:"Emotion / Love", hint:"What moves without moving?",
+       opts:["Wind / Fear","Music / Peace","Emotion / Love","Touch / Trust"], pts:20},
+};
+
+// ══════════════════════════════════════════
+// SPIN THE BOTTLE — 12 ZONES
+// top of bottle = female partner's zone
+// bottom of bottle = male partner's zone
+// ══════════════════════════════════════════
+const ZONES = [
+  {n:"Sweet Words",    f:"Tell him the one quality that makes him irreplaceable to you",              m:"Whisper 3 things you love about her, slowly, into her ear"},
+  {n:"Move Together",  f:"Dance with him like nobody is watching — 30 full seconds",                  m:"Slow dance with her for 30 seconds — no music needed"},
+  {n:"Secret",         f:"Share one thing you have never dared to say out loud",                      m:"Whisper a secret you have never told another soul"},
+  {n:"Gentle Touch",   f:"Trace his face slowly with your fingertips for 20 seconds",                m:"Give her a genuine 30-second shoulder massage"},
+  {n:"Eye Lock",       f:"Look into his eyes and describe what you see in one sentence",              m:"Hold her gaze silently for 15 seconds — do not look away"},
+  {n:"Dream Aloud",    f:"Share one dream you have for this relationship",                            m:"Describe your perfect future together in 60 seconds"},
+  {n:"Make Me Laugh",  f:"Tell him the funniest thing he has ever done",                             m:"Make her laugh by any means you can — 30 seconds"},
+  {n:"Memory Lane",    f:"Recall a moment when you were proudest of him",                            m:"Share your favourite memory of her that always makes you smile"},
+  {n:"Kiss",           f:"Kiss his cheek and whisper: 'You are mine'",                               m:"Give her a slow, intentional forehead kiss"},
+  {n:"Breathe",        f:"Rest your head on his chest for 20 seconds and simply breathe",            m:"Hold her hands and take 5 slow, deep breaths together"},
+  {n:"Right Now",      f:"Complete this: 'Right now what I need most from you is…'",                 m:"Say the one thing you love most about her in this exact moment"},
+  {n:"Ask Away",       f:"Ask him one question about your future together you have never asked",     m:"Ask her the one question you have always wanted to ask but never dared"},
+];
+
+// ══════════════════════════════════════════
+// CARDS OF FATE DECK — 24 cards
+// Partners take turns shuffling and revealing
+// ══════════════════════════════════════════
+const FATE_DECK = [
+  {id:"f01",type:"question",emoji:"🔮",title:"Truly Seen",       body:"What is one thing your partner does that makes you feel truly seen — without even trying?"},
+  {id:"f02",type:"question",emoji:"💛",title:"Falling Moment",   body:"Describe the exact moment you knew your partner was different from everyone you had ever met."},
+  {id:"f03",type:"question",emoji:"🌙",title:"Late Night Thought",body:"What thought about your partner comes to you late at night, when everything is quiet?"},
+  {id:"f04",type:"question",emoji:"🎬",title:"Our Movie",        body:"If your relationship were a movie, what would the title be — and who would play each of you?"},
+  {id:"f05",type:"question",emoji:"🎵",title:"Our Song",         body:"What song most describes your relationship right now — and why exactly that one?"},
+  {id:"f06",type:"question",emoji:"🌱",title:"Growth",           body:"In what one specific way has your partner made you a better version of yourself?"},
+  {id:"f07",type:"question",emoji:"🙈",title:"Honest Confession",body:"What is one thing you wish you could change about how you treat your partner?"},
+  {id:"f08",type:"question",emoji:"🔑",title:"Love Language",    body:"Describe your partner's love language — then honestly rate how well you actually practice it."},
+  {id:"f09",type:"activity",emoji:"✍️",title:"Write It",         body:"Write your partner's name on their palm with your fingertip — slowly. Say one word for each letter as you trace it."},
+  {id:"f10",type:"activity",emoji:"🤗",title:"Hold On",          body:"Give each other a genuine hug. Do not let go for 30 full seconds. No rushing. Just hold on."},
+  {id:"f11",type:"activity",emoji:"🌊",title:"Breathe Together", body:"Face each other. Hold hands. Breathe completely in sync for 30 seconds — inhale together, exhale together."},
+  {id:"f12",type:"activity",emoji:"💃",title:"One Minute Dance", body:"Slow dance for one full minute. At the 30-second mark, whisper something meaningful to your partner."},
+  {id:"f13",type:"activity",emoji:"👁️",title:"Eye Witness",      body:"Look into each other's eyes without speaking for 20 full seconds. Then complete: 'What I see in you is…'"},
+  {id:"f14",type:"activity",emoji:"🖐️",title:"Hand Story",       body:"Hold your partner's hands and trace each finger slowly. Tell a story about what these hands mean to you."},
+  {id:"f15",type:"activity",emoji:"📝",title:"Love Note",        body:"Write a 3-sentence love letter to your partner — right now, from the heart. Read it aloud when finished."},
+  {id:"f16",type:"activity",emoji:"🙏",title:"3 Gratitudes",     body:"Both partners name 3 specific things they are grateful for about the other. No repeating allowed."},
+  {id:"f17",type:"quiz",   emoji:"🧠",title:"Know Me?",          body:"Secretly write your partner's favourite food, colour, and childhood dream. Compare your answers simultaneously!"},
+  {id:"f18",type:"quiz",   emoji:"❓",title:"My Fear",            body:"Write down what you think your partner's greatest fear is. Reveal at the same time — how close were you?"},
+  {id:"f19",type:"quiz",   emoji:"🎯",title:"Perfect Day",       body:"Describe your partner's perfect Saturday in full detail. Your partner rates your accuracy out of 10."},
+  {id:"f20",type:"quiz",   emoji:"💬",title:"One Word",          body:"What word do you think your partner would use to describe you? Write it — then reveal and compare."},
+  {id:"f21",type:"dare",   emoji:"🎤",title:"Serenade",          body:"Sing at least 30 seconds of any song to your partner. No backing out. No lip-syncing."},
+  {id:"f22",type:"dare",   emoji:"🎭",title:"Be Me",             body:"Do your best impression of your partner for 30 seconds. They may gently correct you."},
+  {id:"f23",type:"dare",   emoji:"💌",title:"Say It",            body:"Tell your partner something meaningful you have been meaning to say for a while — but have not. Right now."},
+  {id:"f24",type:"dare",   emoji:"🌟",title:"Compliment Storm",  body:"In 60 seconds, give your partner as many genuine compliments as you can. They respond to each one with 'thank you.'"},
+];
+
+function shuffle(arr){
+  const a=[...arr];
+  for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}
+  return a;
+}
+
+// ══════════════════════════════════════════
+// MAIN COMPONENT
+// ══════════════════════════════════════════
+export default function SoulFlare() {
+  // Core game
+  const [screen,    setScreen]    = useState("welcome");
+  const [players,   setPlayers]   = useState([]);
+  const [couples,   setCouples]   = useState([]);
+  const [mode,      setMode]      = useState("EASY");
+  const [round,     setRound]     = useState(0);
+  const [card,      setCard]      = useState(null);
+  const [usedIds,   setUsedIds]   = useState([]);
+  const [points,    setPoints]    = useState(0);
+  const [cardAnim,  setCardAnim]  = useState(false);
+  const [voice,     setVoice]     = useState(true);
+  const [timeLeft,  setTimeLeft]  = useState(0);
+  const [timerActive,setTimerActive]=useState(false);
+  // Setup
+  const [newName,   setNewName]   = useState("");
+  const [newGender, setNewGender] = useState("female");
+  const [linkStep,  setLinkStep]  = useState(null);
+  const [ageGate,   setAgeGate]   = useState(false);
+  // Continue prompt
+  const [contPrompt,setContPrompt]= useState(false);
+  const [contCount, setContCount] = useState(6);
+  // Puzzle
+  const [puzData,   setPuzData]   = useState(null);
+  const [puzSel,    setPuzSel]    = useState(null);
+  const [puzDone,   setPuzDone]   = useState(false);
+  // Spin The Bottle
+  const [spinAngle, setSpinAngle] = useState(0);
+  const [spinning,  setSpinning]  = useState(false);
+  const [spinRes,   setSpinRes]   = useState(null);
+  // Cards of Fate
+  const [fateDeck,  setFateDeck]  = useState([]);
+  const [fateIdx,   setFateIdx]   = useState(0);
+  const [fateTurn,  setFateTurn]  = useState(0);
+  const [fateFlip,  setFateFlip]  = useState(false);
+
+  const couplesRef = useRef([]);
+  const timerRef   = useRef(null);
+  const contRef    = useRef(null);
+  const pendRef    = useRef(null);
+
+  useEffect(()=>{ couplesRef.current = couples; },[couples]);
+
+  // ── Fonts + CSS ──
+  useEffect(()=>{
+    if(!document.getElementById("sf-font")){
+      const l=document.createElement("link");l.id="sf-font";l.rel="stylesheet";
+      l.href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&display=swap";
+      document.head.appendChild(l);
+    }
+    if(!document.getElementById("sf-css")){
+      const s=document.createElement("style");s.id="sf-css";
+      s.textContent=`*{box-sizing:border-box;margin:0;padding:0;}body{background:#06020e;overflow-x:hidden;}
+      @keyframes rise{from{transform:translateY(48px);opacity:0}to{transform:translateY(0);opacity:1}}
+      @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+      @keyframes hb{0%,100%{transform:scale(1)}14%{transform:scale(1.32)}28%{transform:scale(1)}42%{transform:scale(1.18)}70%{transform:scale(1)}}
+      @keyframes shimmer{0%{background-position:-200% 0}100%{background-position:200% 0}}
+      @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
+      @keyframes spinEl{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+      @keyframes reveal{from{transform:perspective(700px) rotateY(88deg) scale(.85);opacity:0}to{transform:perspective(700px) rotateY(0) scale(1);opacity:1}}
+      @keyframes flipIn{from{transform:perspective(600px) rotateY(-90deg);opacity:0}to{transform:perspective(600px) rotateY(0);opacity:1}}
+      @keyframes flicker{0%,100%{opacity:1}50%{opacity:.78}}
+      @keyframes glow{0%,100%{box-shadow:0 0 22px #e8175d33}50%{box-shadow:0 0 44px #e8175d70}}
+      @keyframes pop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+      @keyframes correct{0%{background:#00880000}50%{background:#00880030}100%{background:#00880020}}
+      .sfb{cursor:pointer;border:none;outline:none;transition:transform .18s,opacity .18s,background .2s;}
+      .sfb:hover{transform:scale(1.035)!important;}.sfb:active{transform:scale(.965)!important;}
+      .sfi{outline:none;transition:border-color .25s;}.sfi:focus{border-color:#e8175d!important;}
+      ::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-thumb{background:#e8175d30;border-radius:2px;}`;
+      document.head.appendChild(s);
+    }
+  },[]);
+
+  // ── VOICE — fixed to normal human speed ──
+  const speak = useCallback(text=>{
+    if(!voice) return;
+    const synth = window.speechSynthesis;
+    if(!synth) return;
+    const doSpeak=()=>{
+      synth.cancel();
+      const u=new SpeechSynthesisUtterance(text);
+      u.rate=1.0; u.pitch=1.0; u.volume=1;
+      const vs=synth.getVoices();
+      const pref=vs.find(v=>["Samantha","Karen","Moira","Victoria","Tessa","Google UK English Female"].some(n=>v.name.includes(n)))
+        || vs.find(v=>v.lang.startsWith("en")&&!v.name.toLowerCase().includes("male"))
+        || vs[0];
+      if(pref) u.voice=pref;
+      synth.speak(u);
+    };
+    synth.getVoices().length>0 ? doSpeak() : (synth.onvoiceschanged=doSpeak);
+  },[voice]);
+
+  // ── SAVE / LOAD ──
+  const saveG=(r,m,c,u,p)=>{try{localStorage.setItem("sfx2",JSON.stringify({round:r,mode:m,couples:c,usedIds:u,points:p}));}catch{}};
+  const loadG=()=>{try{const x=localStorage.getItem("sfx2");return x?JSON.parse(x):null;}catch{return null;}};
+  const clearG=()=>{try{localStorage.removeItem("sfx2");}catch{}};
+
+  // ── TIMER ──
+  const startTimer=s=>{
+    clearInterval(timerRef.current);
+    setTimeLeft(s); setTimerActive(true);
+    timerRef.current=setInterval(()=>{
+      setTimeLeft(p=>{if(p<=1){clearInterval(timerRef.current);setTimerActive(false);speak("Time is up!");return 0;}return p-1;});
+    },1000);
+  };
+
+  // ── PLAYER MANAGEMENT ──
+  const addPlayer=()=>{
+    if(!newName.trim()||players.length>=12)return;
+    setPlayers(p=>[...p,{id:Date.now(),name:newName.trim(),gender:newGender,partner:null}]);
+    setNewName("");
+  };
+  const removePlayer=id=>setPlayers(p=>p.filter(x=>x.id!==id).map(x=>x.partner===id?{...x,partner:null}:x));
+  const linkPlayers=pid=>{
+    if(!linkStep){setLinkStep(pid);return;}
+    if(linkStep===pid){setLinkStep(null);return;}
+    setPlayers(prev=>{
+      const a=prev.find(p=>p.id===linkStep),b=prev.find(p=>p.id===pid);
+      return prev.map(p=>{
+        if(p.id===a?.partner&&p.id!==pid)return{...p,partner:null};
+        if(p.id===b?.partner&&p.id!==linkStep)return{...p,partner:null};
+        if(p.id===linkStep)return{...p,partner:pid};
+        if(p.id===pid)return{...p,partner:linkStep};
+        return p;
+      });
+    });
+    setLinkStep(null);
+  };
+  const getCouples=()=>{
+    const seen=new Set(),list=[];
+    players.forEach(p=>{
+      if(p.partner&&!seen.has(p.id)){
+        const pt=players.find(x=>x.id===p.partner);
+        if(pt){list.push([p,pt]);seen.add(p.id);seen.add(pt.id);}
+      }
+    });
+    return list;
+  };
+
+  // ── DRAW CARD — offline, instant, no API wait ──
+  const drawCard=(roundNum, coupleList, explicitUsedIds)=>{
+    setCardAnim(false);
+    clearInterval(timerRef.current); setTimerActive(false);
+    setPuzData(null); setPuzSel(null); setPuzDone(false);
+    const ids = explicitUsedIds !== undefined ? explicitUsedIds : usedIds;
+    const m   = getMode(roundNum);
+    const cat = getCat(roundNum);
+    const pool     = CARDS.filter(c=>c.mode===m&&c.cat===cat&&!ids.includes(c.id));
+    const fallback = CARDS.filter(c=>c.mode===m&&!ids.includes(c.id));
+    const raw = pool.length     ? pool[Math.floor(Math.random()*pool.length)]
+              : fallback.length ? fallback[Math.floor(Math.random()*fallback.length)]
+              : CARDS[0];
+    const p1 = coupleList[0]?.[0] || {name:"Partner 1",gender:"female"};
+    const p2 = coupleList[0]?.[1] || {name:"Partner 2",gender:"male"};
+    const injCard = { ...raw, inst:inj(raw.inst,p1,p2), fu:inj(raw.fu,p1,p2), couple:`${p1.name} & ${p2.name}` };
+    const newIds = [...ids, raw.id];
+    setCard(injCard);
+    setUsedIds(newIds);
+    if(raw.pid) setPuzData(PUZZLES[raw.pid]);
+    if(raw.dur) startTimer(raw.dur);
+    saveG(roundNum, m, coupleList, newIds, points);
+    setTimeout(()=>{ setCardAnim(true); speak(injCard.inst); },160);
+  };
+
+  // ── GAME FLOW ──
+  const goNext=()=>{
+    clearInterval(timerRef.current);
+    const nr=round+1;
+    if(nr>=TOTAL){clearG();setScreen("finale");speak("Congratulations! You have completed SoulFlare. May your love burn brighter every day.");return;}
+    const pm=getMode(round), nm=getMode(nr);
+    const ac=couplesRef.current;
+    const curIds=[...usedIds];
+    setRound(nr);
+    if(nm!==pm){
+      setMode(nm);
+      if(nm==="CRAZY"){setAgeGate(true);return;}
+      setScreen("transition");
+      speak(`${MODES[nm].label} begins. ${MODES[nm].sub}.`);
+      setTimeout(()=>{setScreen("game");drawCard(nr,ac,curIds);},4000);
+    } else {
+      drawCard(nr,ac,curIds);
+    }
+  };
+
+  const confirmAge=()=>{
+    setAgeGate(false); setScreen("transition");
+    const ac=couplesRef.current; const curIds=[...usedIds];
+    speak("Crazy Love Mode. Where love burns brightest.");
+    setTimeout(()=>{setScreen("game");drawCard(round,ac,curIds);},4000);
+  };
+
+  const goToMenu=()=>{
+    clearInterval(timerRef.current);
+    window.speechSynthesis?.cancel();
+    setTimerActive(false); setCard(null); setScreen("welcome");
+  };
+
+  // ── START / RESUME ──
+  const beginNewGame=cl=>{
+    clearG(); setCouples(cl); couplesRef.current=cl;
+    setRound(0); setMode("EASY"); setUsedIds([]); setCard(null); setPoints(0);
+    setScreen("transition");
+    speak("Welcome to SoulFlare. Easy Mode begins. Let the journey start.");
+    setTimeout(()=>{setScreen("game");drawCard(0,cl,[]);},3800);
+  };
+
+  const resumeGame=()=>{
+    clearInterval(contRef.current); setContPrompt(false);
+    const saved=loadG();
+    if(!saved){beginNewGame(pendRef.current);return;}
+    const sl=saved.usedIds||[];
+    setCouples(saved.couples); couplesRef.current=saved.couples;
+    setRound(saved.round); setMode(saved.mode);
+    setUsedIds(sl); setPoints(saved.points||0);
+    setScreen("game");
+    speak(`Welcome back. Continuing from round ${saved.round+1}.`);
+    drawCard(saved.round, saved.couples, sl);
+  };
+
+  const handleIgnite=()=>{
+    const c=getCouples();
+    if(!c.length){alert("Link at least one couple first!");return;}
+    const saved=loadG();
+    if(saved){
+      pendRef.current=c; setContCount(6); setContPrompt(true);
+      clearInterval(contRef.current);
+      contRef.current=setInterval(()=>{
+        setContCount(p=>{if(p<=1){clearInterval(contRef.current);setContPrompt(false);beginNewGame(pendRef.current);return 0;}return p-1;});
+      },1000);
+    } else { beginNewGame(c); }
+  };
+
+  // ── SPIN THE BOTTLE ──
+  const handleSpin=()=>{
+    if(spinning) return;
+    setSpinning(true); setSpinRes(null);
+    const extra=1080+Math.floor(Math.random()*720);
+    const na=spinAngle+extra;
+    setSpinAngle(na);
+    setTimeout(()=>{
+      setSpinning(false);
+      const fin=na%360;
+      const topZone=Math.floor(fin/30)%12;   // female end
+      const botZone=(topZone+6)%12;           // male end (180° away)
+      setSpinRes({topZone,botZone});
+    },3800);
+  };
+
+  // ── CARDS OF FATE ──
+  const initFate=()=>{
+    setFateDeck(shuffle(FATE_DECK));
+    setFateIdx(0); setFateTurn(0); setFateFlip(false);
+    setScreen("fate");
+  };
+
+  // ── SHARED UI ──
+  const Sparks=()=>(
+    <div style={{position:"absolute",inset:0,overflow:"hidden",pointerEvents:"none",zIndex:0}}>
+      {Array.from({length:20}).map((_,i)=>(
+        <div key={i} style={{position:"absolute",
+          width:i%5===0?"4px":i%3===0?"3px":"2px",height:i%5===0?"4px":i%3===0?"3px":"2px",
+          borderRadius:"50%",background:i%2===0?"#e8175d55":"#d4a85344",
+          left:`${(i*14+6)%97}%`,top:`${(i*17+8)%94}%`,
+          animation:`float ${2.8+i*.33}s ease-in-out infinite`,animationDelay:`${i*.27}s`}}/>
+      ))}
+    </div>
+  );
+  const HR=({c="#d4a853"})=><div style={{width:"100%",height:1,background:`linear-gradient(90deg,transparent,${c}88,transparent)`,margin:"14px 0"}}/>;
+  const root={minHeight:"100vh",background:"linear-gradient(150deg,#06020e 0%,#0e0519 50%,#06020f 100%)",
+    fontFamily:"'Cormorant Garamond','Georgia',serif",color:"#f5e6d3",
+    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+    position:"relative",overflow:"hidden"};
+  const cfg=MODES[mode];
+
+  // ══════════════════════════════════════════
+  // WELCOME
+  // ══════════════════════════════════════════
+  if(screen==="welcome") return(
+    <div style={root}><Sparks/>
+      <div style={{textAlign:"center",zIndex:1,maxWidth:420,width:"100%",padding:"28px 20px",animation:"rise .8s ease"}}>
+        <div style={{fontSize:72,animation:"hb 2.4s ease-in-out infinite",lineHeight:1,marginBottom:8}}>🔥</div>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(52px,14vw,80px)",fontWeight:900,
+          background:"linear-gradient(130deg,#e8175d,#d4a853,#e8175d)",backgroundSize:"200%",
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",
+          animation:"shimmer 3s linear infinite",lineHeight:.9,letterSpacing:".07em",marginBottom:6}}>SOUL<br/>FLARE</h1>
+        <p style={{color:"#9a8aaa",fontStyle:"italic",fontSize:17,letterSpacing:".22em",marginBottom:6}}>where love burns brightest</p>
+        <HR/>
+        <p style={{color:"#c4b0d8",fontSize:16,lineHeight:1.82,margin:"14px 0 20px",padding:"0 6px"}}>
+          An intimate bonding journey for couples — through truth, activities, puzzles, and love. With God at the center.
+        </p>
+        <div style={{display:"flex",gap:8,justifyContent:"center",flexWrap:"wrap",marginBottom:22}}>
+          {Object.values(MODES).map(m=>(
+            <span key={m.label} style={{background:`${m.color}18`,border:`1px solid ${m.color}44`,
+              color:m.color,padding:"5px 13px",borderRadius:20,fontSize:13,fontStyle:"italic"}}>
+              {m.emoji} {m.label}</span>))}
+        </div>
+        <button className="sfb" onClick={()=>setScreen("setup")} style={{width:"100%",padding:18,
+          background:"linear-gradient(135deg,#e8175d,#a8083e)",borderRadius:14,fontSize:20,
+          fontFamily:"'Playfair Display',serif",fontWeight:700,color:"#fff",letterSpacing:".04em",
+          marginBottom:10,animation:"glow 2.6s ease-in-out infinite"}}>Begin the Journey ✨</button>
+        <p style={{color:"#4a3a5a",fontSize:13}}>2–12 players · 18+ for Crazy Love Mode · 24 rounds</p>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
+  // SETUP
+  // ══════════════════════════════════════════
+  if(screen==="setup"){
+    const cpls=getCouples();
+    const circ=2*Math.PI*30;
+    return(
+      <div style={{...root,justifyContent:"flex-start"}}><Sparks/>
+        <div style={{width:"100%",maxWidth:480,minHeight:"100vh",overflowY:"auto",padding:"20px 16px",position:"relative",zIndex:1}}>
+          <div style={{textAlign:"center",marginBottom:22}}>
+            <button onClick={()=>setScreen("welcome")} className="sfb" style={{background:"none",color:"#6a5a7a",fontSize:14,display:"block",margin:"0 auto 10px"}}>← Back</button>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:30,color:"#e8175d"}}>Who's Playing? 🎭</h2>
+            <p style={{color:"#8a7a9a",fontStyle:"italic",fontSize:15}}>Add players · Tap two to link as a couple</p>
+          </div>
+
+          {/* Add Player */}
+          <div style={{background:"#110820",border:"1px solid #1e1030",borderRadius:16,padding:20,marginBottom:18}}>
+            <p style={{color:"#d4a853",fontSize:15,fontStyle:"italic",marginBottom:12}}>✨ Add Player</p>
+            <input className="sfi" value={newName} onChange={e=>setNewName(e.target.value)}
+              onKeyDown={e=>e.key==="Enter"&&addPlayer()} placeholder="Enter name..." maxLength={20}
+              style={{width:"100%",background:"#09051a",border:"1px solid #1e1030",borderRadius:10,
+                padding:"13px 15px",color:"#f5e6d3",fontSize:18,fontFamily:"'Cormorant Garamond',serif",marginBottom:10}}/>
+            <div style={{display:"flex",gap:8,marginBottom:12}}>
+              {["female","male","other"].map(g=>(
+                <button key={g} className="sfb" onClick={()=>setNewGender(g)} style={{flex:1,padding:"10px 4px",
+                  background:newGender===g?"#e8175d":"#09051a",border:`1px solid ${newGender===g?"#e8175d":"#1e1030"}`,
+                  borderRadius:10,color:newGender===g?"#fff":"#6a5a7a",fontSize:14,fontFamily:"'Cormorant Garamond',serif"}}>
+                  {g==="female"?"♀ Female":g==="male"?"♂ Male":"⚧ Other"}</button>
+              ))}
+            </div>
+            <button className="sfb" onClick={addPlayer} disabled={!newName.trim()||players.length>=12} style={{width:"100%",padding:13,
+              background:!newName.trim()?"#1a1030":"linear-gradient(135deg,#e8175d,#a8083e)",
+              borderRadius:10,color:!newName.trim()?"#4a3a5a":"#fff",fontSize:17,fontFamily:"'Playfair Display',serif",fontWeight:700}}>
+              + Add Player ({players.length}/12)</button>
+          </div>
+
+          {/* Link Players */}
+          {players.length>0&&(
+            <div style={{marginBottom:18}}>
+              <p style={{color:"#d4a853",fontSize:15,fontStyle:"italic",marginBottom:10}}>💑 Link Partners — tap to select, then tap their partner</p>
+              {players.map(p=>{
+                const pt=players.find(x=>x.id===p.partner),sel=linkStep===p.id;
+                return(
+                  <div key={p.id} onClick={()=>linkPlayers(p.id)} style={{display:"flex",alignItems:"center",gap:12,
+                    background:sel?"#e8175d14":p.partner?"#d4a85310":"#110820",
+                    border:`1px solid ${sel?"#e8175d":p.partner?"#d4a85340":"#1e1030"}`,
+                    borderRadius:12,padding:"12px 14px",marginBottom:8,cursor:"pointer",transition:"all .2s",
+                    animation:sel?"pulse .9s ease-in-out infinite":"none"}}>
+                    <span style={{fontSize:26}}>{p.gender==="female"?"👩":p.gender==="male"?"👨":"🧑"}</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontSize:18,color:sel?"#e8175d":p.partner?"#f5e6d3":"#c4b0d8",fontWeight:600}}>{p.name}</div>
+                      <div style={{fontSize:13,color:"#6a5a7a"}}>{p.partner?`💑 Linked with ${pt?.name}`:sel?"Tap partner to link…":"Tap to select"}</div>
+                    </div>
+                    <button onClick={e=>{e.stopPropagation();removePlayer(p.id);}} className="sfb"
+                      style={{background:"none",color:"#4a3a5a",fontSize:16,padding:"4px 8px"}}>🗑</button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {cpls.length>0&&(
+            <div style={{background:"#d4a85310",border:"1px solid #d4a85330",borderRadius:12,padding:"12px 16px",marginBottom:18}}>
+              <p style={{color:"#d4a853",fontWeight:600,marginBottom:6}}>💑 {cpls.length} couple{cpls.length>1?"s":""} ready</p>
+              {cpls.map((c,i)=><p key={i} style={{color:"#a090b8",fontSize:15}}>{c[0].name} ♥ {c[1].name}</p>)}
+            </div>
+          )}
+
+          <button className="sfb" onClick={handleIgnite} style={{width:"100%",padding:19,
+            background:cpls.length?"linear-gradient(135deg,#e8175d,#a8083e)":"#1a1030",
+            borderRadius:14,color:cpls.length?"#fff":"#4a3a5a",fontSize:20,
+            fontFamily:"'Playfair Display',serif",fontWeight:700,
+            boxShadow:cpls.length?"0 0 32px rgba(232,23,93,.42)":"none",marginBottom:24}}>
+            {cpls.length?"🔥 Ignite SoulFlare":"Link a couple to begin"}
+          </button>
+        </div>
+
+        {/* CONTINUE PROMPT — 6-second countdown */}
+        {contPrompt&&(()=>{
+          const saved=loadG();
+          return(
+            <div style={{position:"fixed",inset:0,background:"rgba(6,2,14,.97)",display:"flex",
+              alignItems:"center",justifyContent:"center",zIndex:300,padding:24}}>
+              <div style={{background:"#110820",border:"1px solid #e8175d44",borderRadius:22,padding:"28px 24px",
+                maxWidth:360,width:"100%",textAlign:"center",animation:"rise .45s ease",boxShadow:"0 0 60px #e8175d22"}}>
+                <div style={{fontSize:52,marginBottom:10}}>🔥</div>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:"#e8175d",marginBottom:8}}>Continue Your Journey?</h3>
+                {saved&&<p style={{color:"#d4a853",fontSize:14,fontStyle:"italic",marginBottom:14}}>
+                  Round {(saved.round||0)+1}/{TOTAL} · {MODES[saved.mode||"EASY"].label} · 💎 {saved.points||0} pts
+                </p>}
+                <p style={{color:"#c4b0d8",fontSize:15,lineHeight:1.68,marginBottom:18}}>A saved game was found. Continue where you left off, or start fresh?</p>
+                {/* Circular countdown */}
+                <div style={{position:"relative",width:80,height:80,margin:"0 auto 10px"}}>
+                  <svg width="80" height="80" style={{transform:"rotate(-90deg)"}}>
+                    <circle cx="40" cy="40" r="30" fill="none" stroke="#1a1030" strokeWidth="5"/>
+                    <circle cx="40" cy="40" r="30" fill="none" stroke="#e8175d" strokeWidth="5"
+                      strokeDasharray={2*Math.PI*30}
+                      strokeDashoffset={(2*Math.PI*30)*(1-contCount/6)}
+                      style={{transition:"stroke-dashoffset .95s linear"}}/>
+                  </svg>
+                  <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",
+                    fontFamily:"'Playfair Display',serif",fontSize:28,color:"#e8175d",fontWeight:700}}>{contCount}</div>
+                </div>
+                <p style={{color:"#4a3a5a",fontSize:12,marginBottom:20,animation:"flicker 1.4s infinite"}}>New game in {contCount}s…</p>
+                <div style={{display:"flex",gap:12}}>
+                  <button className="sfb" onClick={()=>{clearInterval(contRef.current);setContPrompt(false);beginNewGame(pendRef.current);}} style={{
+                    flex:1,padding:14,background:"#09051a",border:"1px solid #1e1030",borderRadius:12,
+                    color:"#6a5a7a",fontSize:15,fontFamily:"'Playfair Display',serif"}}>New Game</button>
+                  <button className="sfb" onClick={resumeGame} style={{
+                    flex:1,padding:14,background:"linear-gradient(135deg,#e8175d,#a8083e)",borderRadius:12,
+                    color:"#fff",fontSize:15,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Continue 🔥</button>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════
+  // MODE TRANSITION
+  // ══════════════════════════════════════════
+  if(screen==="transition") return(
+    <div style={root}><Sparks/>
+      <div style={{position:"absolute",inset:0,background:`radial-gradient(ellipse at center,${cfg.color}15 0%,transparent 68%)`,pointerEvents:"none"}}/>
+      <div style={{textAlign:"center",zIndex:1,padding:"28px 24px",animation:"rise .7s ease",maxWidth:400}}>
+        <div style={{fontSize:84,animation:"hb 1.9s ease-in-out infinite",marginBottom:14}}>{cfg.emoji}</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(34px,10vw,56px)",
+          background:`linear-gradient(135deg,${cfg.color},#d4a853)`,
+          WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>{cfg.label}</h2>
+        <p style={{color:"#b4a0c8",fontSize:20,fontStyle:"italic",marginBottom:14}}>{cfg.sub}</p>
+        {couplesRef.current.length>0&&(
+          <p style={{color:cfg.color,fontSize:17,fontWeight:600,fontFamily:"'Playfair Display',serif",marginBottom:14}}>
+            {couplesRef.current.map(c=>`${c[0].name} & ${c[1].name}`).join(" · ")}</p>
+        )}
+        <HR c={cfg.color}/>
+        <div style={{background:"#110820",border:`1px solid ${cfg.color}33`,borderRadius:16,padding:20,margin:"18px auto 0",maxWidth:340}}>
+          <p style={{color:"#c4b0d8",fontSize:17,lineHeight:1.78}}>
+            {mode==="EASY"&&"🌸 Light questions, fun activities, laughter and puzzles — the journey begins gently."}
+            {mode==="LOVE"&&"❤️ Deeper questions, romantic activities, real vulnerability and connection await you."}
+            {mode==="CRAZY"&&"🔥 No holding back. Trust deeply, confess boldly, love at full intensity. Adults only."}
+          </p>
+        </div>
+        <p style={{color:"#4a3a5a",fontSize:14,marginTop:30,animation:"flicker 1.6s infinite"}}>Starting in a moment…</p>
+      </div>
+    </div>
+  );
+
+  // ══════════════════════════════════════════
+  // GAME SCREEN
+  // ══════════════════════════════════════════
+  if(screen==="game"){
+    const prog=(round/TOTAL)*100;
+    return(
+      <div style={{...root,justifyContent:"flex-start"}}><Sparks/>
+        <div style={{width:"100%",maxWidth:480,minHeight:"100vh",display:"flex",flexDirection:"column",position:"relative",zIndex:1,padding:"14px 14px"}}>
+
+          {/* HEADER */}
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
+            <div style={{display:"flex",alignItems:"center",gap:7}}>
+              <button className="sfb" onClick={goToMenu} style={{background:"#110820",border:"1px solid #1e1030",
+                borderRadius:8,padding:"5px 10px",color:"#6a5a7a",fontSize:12}}>🏠 Menu</button>
+              <div style={{background:`${cfg.color}18`,border:`1px solid ${cfg.color}44`,borderRadius:20,
+                padding:"5px 12px",color:cfg.color,fontSize:12,fontWeight:600}}>{cfg.emoji} {cfg.label}</div>
+            </div>
+            <div style={{display:"flex",gap:7,alignItems:"center"}}>
+              {points>0&&<div style={{background:"#d4a85318",border:"1px solid #d4a85344",borderRadius:20,
+                padding:"4px 9px",color:"#d4a853",fontSize:12,fontWeight:600}}>💎{points}</div>}
+              <button className="sfb" onClick={()=>{setVoice(v=>!v);window.speechSynthesis?.cancel();}} style={{
+                background:voice?"#e8175d18":"#1a1030",border:`1px solid ${voice?"#e8175d44":"#1e1030"}`,
+                borderRadius:8,padding:"5px 9px",color:voice?"#e8175d":"#4a3a5a",fontSize:15}}>
+                {voice?"🔊":"🔇"}</button>
+              <span style={{color:"#5a4a6a",fontSize:13}}>{round+1}/{TOTAL}</span>
+            </div>
+          </div>
+
+          {/* PROGRESS */}
+          <div style={{marginBottom:13}}>
+            <div style={{height:3,background:"#1a1030",borderRadius:4,overflow:"hidden",marginBottom:4}}>
+              <div style={{width:`${prog}%`,height:"100%",background:`linear-gradient(90deg,#e8175d,${cfg.color})`,borderRadius:4,transition:"width .6s ease"}}/>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              {Object.entries(MODES).map(([k,m])=>(
+                <span key={k} style={{fontSize:10,color:k===mode?m.color:"#2a1a3a"}}>{m.emoji} {m.label}</span>))}
+            </div>
+          </div>
+
+          {/* MINI-GAME ACCESS BUTTONS */}
+          <div style={{display:"flex",gap:8,marginBottom:13}}>
+            <button className="sfb" onClick={()=>setScreen("spin")} style={{flex:1,padding:"9px 6px",
+              background:"linear-gradient(135deg,#120828,#0b041a)",
+              border:"1px solid #e8175d30",borderRadius:12,color:"#e8175d",
+              fontSize:13,fontFamily:"'Playfair Display',serif",fontWeight:600,letterSpacing:".02em"}}>
+              🍾 Spin the Bottle</button>
+            <button className="sfb" onClick={()=>initFate()} style={{flex:1,padding:"9px 6px",
+              background:"linear-gradient(135deg,#120828,#0b041a)",
+              border:"1px solid #d4a85330",borderRadius:12,color:"#d4a853",
+              fontSize:13,fontFamily:"'Playfair Display',serif",fontWeight:600,letterSpacing:".02em"}}>
+              🃏 Cards of Fate</button>
+          </div>
+
+          {/* CARD */}
+          <div style={{flex:1,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+            {card?(
+              <div style={{background:"linear-gradient(148deg,#150b24,#0e0618)",border:`1px solid ${cfg.color}44`,
+                borderRadius:20,padding:20,boxShadow:`0 0 55px ${cfg.color}18,inset 0 1px 0 ${cfg.color}1a`,
+                animation:cardAnim?"reveal .65s ease":"none"}}>
+
+                {/* Category + intensity */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                  <span style={{background:`${cfg.color}20`,border:`1px solid ${cfg.color}44`,color:cfg.color,
+                    padding:"4px 11px",borderRadius:20,fontSize:12,textTransform:"uppercase",letterSpacing:".1em"}}>
+                    {CE[card.cat]||"🎯"} {card.cat}</span>
+                  <div style={{display:"flex",gap:2,alignItems:"center"}}>
+                    {Array.from({length:10}).map((_,i)=>(
+                      <div key={i} style={{width:13,height:5,borderRadius:2,background:i<card.hot?cfg.color:"#1a1030",transition:"background .3s"}}/>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Couple badge */}
+                <div style={{background:"#09051a",borderRadius:9,padding:"7px 12px",marginBottom:11,border:"1px solid #1a0e28"}}>
+                  <p style={{color:"#d4a853",fontSize:14,fontWeight:600}}>🎯 {card.couple||"All Couples"}</p>
+                </div>
+
+                {/* Title */}
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:21,color:"#f5e6d3",marginBottom:11,lineHeight:1.3}}>{card.title}</h3>
+
+                {/* PUZZLE UI — shows when card has a puzzle */}
+                {puzData&&!puzDone?(
+                  <div style={{marginBottom:12}}>
+                    <p style={{fontSize:15,color:"#c4b0d8",marginBottom:10,lineHeight:1.6}}>{puzData.q}</p>
+                    <div style={{background:"#09051a",border:"1px solid #d4a85333",borderRadius:12,
+                      padding:"14px",marginBottom:12,textAlign:"center"}}>
+                      <p style={{fontSize:19,color:"#d4a853",fontFamily:"'Playfair Display',serif",
+                        letterSpacing:".15em",lineHeight:1.5}}>{puzData.clue}</p>
+                    </div>
+                    {puzSel===null?(
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                        {puzData.opts.map((opt,i)=>(
+                          <button key={i} className="sfb" onClick={()=>{
+                            const correct=opt===puzData.ans;
+                            setPuzSel(i);
+                            if(correct){
+                              const np=points+puzData.pts;
+                              setPoints(np);
+                              saveG(round,mode,couplesRef.current,usedIds,np);
+                            }
+                            setTimeout(()=>setPuzDone(true),1200);
+                          }} style={{padding:"11px 8px",background:"#110820",border:"1px solid #1e1030",
+                            borderRadius:10,color:"#c4b0d8",fontSize:14,textAlign:"center"}}>
+                            {opt}</button>
+                        ))}
+                      </div>
+                    ):(
+                      <div style={{textAlign:"center",padding:14,borderRadius:10,
+                        background:puzData.opts[puzSel]===puzData.ans?"#00880020":"#e8175d18",
+                        border:`1px solid ${puzData.opts[puzSel]===puzData.ans?"#00880044":"#e8175d44"}`}}>
+                        <p style={{fontSize:16,fontWeight:700,color:puzData.opts[puzSel]===puzData.ans?"#4caf50":"#e8175d"}}>
+                          {puzData.opts[puzSel]===puzData.ans
+                            ?`✓ Correct! +${puzData.pts} points earned!`
+                            :`✗ Not quite. The answer is: ${puzData.ans}`}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ):(
+                  /* Regular instruction */
+                  <p style={{fontSize:17,lineHeight:1.82,color:"#d0bce8",marginBottom:12}}>{card.inst}</p>
+                )}
+
+                {/* Timer */}
+                {timerActive&&(
+                  <div style={{background:"#09051a",borderRadius:12,padding:11,textAlign:"center",marginBottom:12,
+                    border:`1px solid ${timeLeft<10?"#e8175d":"#1a0e28"}`}}>
+                    <div style={{fontSize:36,fontFamily:"'Playfair Display',serif",
+                      color:timeLeft<10?"#e8175d":"#d4a853",animation:timeLeft<10?"pulse .5s ease-in-out infinite":"none"}}>
+                      {Math.floor(timeLeft/60).toString().padStart(2,"0")}:{(timeLeft%60).toString().padStart(2,"0")}
+                    </div>
+                  </div>
+                )}
+
+                {/* Follow Up */}
+                {card.fu&&(!puzData||puzDone)&&(
+                  <><HR/><p style={{fontSize:15,color:"#7a6a8a",fontStyle:"italic",lineHeight:1.7,marginTop:8}}>✨ {card.fu}</p></>
+                )}
+              </div>
+            ):(
+              <div style={{textAlign:"center",padding:"60px 0"}}>
+                <div style={{width:44,height:44,border:`3px solid ${cfg.color}33`,borderTop:`3px solid ${cfg.color}`,
+                  borderRadius:"50%",animation:"spinEl 1s linear infinite",margin:"0 auto 14px"}}/>
+                <p style={{color:"#5a4a6a",fontStyle:"italic"}}>Drawing your card…</p>
+              </div>
+            )}
+          </div>
+
+          {/* FOOTER */}
+          <div style={{paddingTop:14,paddingBottom:4}}>
+            <button className="sfb" onClick={goNext} style={{width:"100%",padding:18,
+              background:`linear-gradient(135deg,#e8175d,${cfg.color})`,borderRadius:14,color:"#fff",
+              fontSize:18,fontFamily:"'Playfair Display',serif",fontWeight:700,letterSpacing:".04em",
+              marginBottom:8,boxShadow:`0 0 30px ${cfg.color}44`}}>
+              {round+1>=TOTAL?"🎊 Complete SoulFlare":"Next Card →"}</button>
+            {card&&voice&&(
+              <button className="sfb" onClick={()=>speak(card.inst)} style={{width:"100%",padding:10,
+                background:"#110820",border:"1px solid #1e1030",borderRadius:10,color:"#7a6a8a",fontSize:14}}>
+                🔊 Replay Voice</button>
+            )}
+          </div>
+        </div>
+
+        {/* AGE GATE */}
+        {ageGate&&(
+          <div style={{position:"fixed",inset:0,background:"rgba(6,2,14,.96)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:100,padding:24}}>
+            <div style={{background:"#110820",border:"1px solid #ff450055",borderRadius:20,padding:26,maxWidth:360,textAlign:"center",animation:"rise .5s ease"}}>
+              <div style={{fontSize:60,marginBottom:12}}>🔥</div>
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:"#ff4500",marginBottom:10}}>Crazy Love Mode</h3>
+              <p style={{color:"#c4b0d8",fontSize:16,lineHeight:1.78,marginBottom:16}}>
+                This mode contains 18+ content. By continuing, all players confirm they are adults (18+).
+              </p>
+              <HR c="#ff4500"/>
+              <div style={{display:"flex",gap:12,marginTop:14}}>
+                <button className="sfb" onClick={()=>setAgeGate(false)} style={{flex:1,padding:13,background:"#1a1030",
+                  border:"1px solid #1e1030",borderRadius:12,color:"#6a5a7a",fontSize:16,fontFamily:"'Playfair Display',serif"}}>
+                  Go Back</button>
+                <button className="sfb" onClick={confirmAge} style={{flex:1,padding:13,
+                  background:"linear-gradient(135deg,#ff4500,#c2185b)",borderRadius:12,
+                  color:"#fff",fontSize:16,fontFamily:"'Playfair Display',serif",fontWeight:700}}>We're 18+ 🔥</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════
+  // SPIN THE BOTTLE
+  // ══════════════════════════════════════════
+  if(screen==="spin"){
+    const couple=couplesRef.current[0]||[];
+    const female=couple.find?.(p=>p.gender==="female") || couple[0] || {name:"Partner"};
+    const male  =couple.find?.(p=>p.gender==="male")   || couple[1] || {name:"Partner"};
+    const sz=288, cx=144, cy=144, r=128;
+    const zColors=["#e8175d","#c2185b","#d4a853","#ff6b35","#9c27b0","#3f51b5",
+                   "#00897b","#43a047","#fb8c00","#e91e63","#0288d1","#6d4c41"];
+
+    return(
+      <div style={{...root,justifyContent:"flex-start"}}><Sparks/>
+        <div style={{width:"100%",maxWidth:480,minHeight:"100vh",display:"flex",flexDirection:"column",position:"relative",zIndex:1,padding:"14px 14px"}}>
+
+          {/* Header */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:18}}>
+            <button className="sfb" onClick={()=>setScreen("game")} style={{background:"none",color:"#6a5a7a",fontSize:14}}>← Back</button>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:"#e8175d",flex:1,textAlign:"center"}}>🍾 Spin the Bottle</h2>
+          </div>
+
+          {/* Key */}
+          <div style={{background:"#110820",border:"1px solid #1e1030",borderRadius:14,padding:"12px 16px",marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-around"}}>
+              <div style={{textAlign:"center"}}>
+                <div style={{width:14,height:14,borderRadius:"50%",background:"#e879a0",margin:"0 auto 5px"}}/>
+                <p style={{color:"#e879a0",fontSize:13,fontWeight:700}}>♀ Top of Bottle</p>
+                <p style={{color:"#8a7a9a",fontSize:12}}>{female.name}</p>
+              </div>
+              <div style={{width:1,background:"#1e1030"}}/>
+              <div style={{textAlign:"center"}}>
+                <div style={{width:14,height:14,borderRadius:"50%",background:"#5c6bc0",margin:"0 auto 5px"}}/>
+                <p style={{color:"#8899e8",fontSize:13,fontWeight:700}}>♂ Bottom of Bottle</p>
+                <p style={{color:"#8a7a9a",fontSize:12}}>{male.name}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* WHEEL + BOTTLE */}
+          <div style={{position:"relative",width:sz,height:sz,margin:"0 auto 14px",flexShrink:0}}>
+            {/* SVG Wheel */}
+            <svg width={sz} height={sz} viewBox={`0 0 ${sz} ${sz}`} style={{position:"absolute",inset:0}}>
+              {Array.from({length:12},(_,i)=>{
+                const sa=(i*30-90)*Math.PI/180, ea=((i+1)*30-90)*Math.PI/180;
+                const x1=cx+r*Math.cos(sa),y1=cy+r*Math.sin(sa);
+                const x2=cx+r*Math.cos(ea),y2=cy+r*Math.sin(ea);
+                const mx=cx+(r*.64)*Math.cos((sa+ea)/2), my=cy+(r*.64)*Math.sin((sa+ea)/2);
+                const isTop=spinRes&&i===spinRes.topZone;
+                const isBot=spinRes&&i===spinRes.botZone;
+                return(
+                  <g key={i}>
+                    <path d={`M${cx} ${cy} L${x1} ${y1} A${r} ${r} 0 0 1 ${x2} ${y2} Z`}
+                      fill={isTop||isBot?"#fff":zColors[i]}
+                      opacity={isTop||isBot?1:.78}
+                      stroke="#06020e" strokeWidth="1.5"/>
+                    <text x={mx} y={my} textAnchor="middle" dominantBaseline="middle"
+                      fontSize="11" fill={isTop||isBot?"#06020e":"#fff"} fontWeight="700"
+                      style={{fontFamily:"Arial,sans-serif",userSelect:"none"}}>{i+1}</text>
+                  </g>
+                );
+              })}
+              <circle cx={cx} cy={cy} r={20} fill="#09051a" stroke="#d4a853" strokeWidth="2.5"/>
+            </svg>
+            {/* Spinning Bottle Needle */}
+            <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",pointerEvents:"none"}}>
+              <div style={{
+                width:10, height:sz*.84,
+                transform:`rotate(${spinAngle}deg)`,
+                transition:spinning?"transform 3.8s cubic-bezier(0.17,0.67,0.08,0.99)":"none",
+                transformOrigin:"50% 50%",
+                display:"flex",flexDirection:"column",alignItems:"center",borderRadius:5,gap:0,
+              }}>
+                {/* Top — female (pink) */}
+                <div style={{flex:1,width:10,background:"linear-gradient(to bottom,#f48fb1,#e8175d)",borderRadius:"5px 5px 0 0"}}/>
+                {/* Bottom — male (blue) */}
+                <div style={{flex:1,width:10,background:"linear-gradient(to bottom,#5c6bc0,#1a237e)",borderRadius:"0 0 5px 5px"}}/>
+              </div>
+              {/* Pivot */}
+              <div style={{position:"absolute",width:18,height:18,borderRadius:"50%",background:"#d4a853",border:"2.5px solid #06020e",zIndex:2}}/>
+            </div>
+          </div>
+
+          {/* Zone Legend */}
+          <div style={{background:"#09051a",border:"1px solid #1a1030",borderRadius:12,padding:"10px 12px",marginBottom:12,maxHeight:110,overflowY:"auto"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 10px"}}>
+              {ZONES.map((z,i)=>{
+                const hi=spinRes&&(i===spinRes.topZone||i===spinRes.botZone);
+                return(
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:5,opacity:hi?1:.45}}>
+                    <div style={{width:18,height:18,borderRadius:"50%",background:zColors[i],flexShrink:0,
+                      display:"flex",alignItems:"center",justifyContent:"center"}}>
+                      <span style={{fontSize:9,color:"#fff",fontWeight:"700"}}>{i+1}</span>
+                    </div>
+                    <span style={{fontSize:11,color:hi?"#f5e6d3":"#5a4a6a",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{z.n}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Spin Button */}
+          <button className="sfb" onClick={handleSpin} disabled={spinning} style={{width:"100%",padding:17,
+            background:spinning?"#1a1030":"linear-gradient(135deg,#e8175d,#a8083e)",borderRadius:14,
+            color:spinning?"#4a3a5a":"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700,
+            marginBottom:12,boxShadow:spinning?"none":"0 0 28px #e8175d44"}}>
+            {spinning?"Spinning…":"🍾 Tap to Spin!"}
+          </button>
+
+          {/* Result */}
+          {spinRes&&!spinning&&(
+            <div style={{background:"#110820",border:"1px solid #e8175d33",borderRadius:16,padding:16,animation:"pop .4s ease"}}>
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#e8175d",marginBottom:12,textAlign:"center"}}>🎯 The Bottle Has Spoken!</h3>
+              <div style={{background:"#e879a014",border:"1px solid #e879a033",borderRadius:12,padding:"11px 14px",marginBottom:9}}>
+                <p style={{color:"#e879a0",fontSize:12,fontWeight:700,marginBottom:5}}>♀ {female.name} — Zone {spinRes.topZone+1}: {ZONES[spinRes.topZone].n}</p>
+                <p style={{color:"#d0bce8",fontSize:15,lineHeight:1.65}}>{ZONES[spinRes.topZone].f}</p>
+              </div>
+              <div style={{background:"#3f51b514",border:"1px solid #5c6bc033",borderRadius:12,padding:"11px 14px"}}>
+                <p style={{color:"#8899e8",fontSize:12,fontWeight:700,marginBottom:5}}>♂ {male.name} — Zone {spinRes.botZone+1}: {ZONES[spinRes.botZone].n}</p>
+                <p style={{color:"#d0bce8",fontSize:15,lineHeight:1.65}}>{ZONES[spinRes.botZone].m}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════
+  // CARDS OF FATE
+  // ══════════════════════════════════════════
+  if(screen==="fate"){
+    const couple=couplesRef.current[0]||[];
+    const p1=couple[0]||{name:"Player 1"};
+    const p2=couple[1]||{name:"Player 2"};
+    const cur=fateTurn===0?p1:p2;
+    const next=fateTurn===0?p2:p1;
+    const fc=fateDeck[fateIdx];
+    const tc={question:"#e8175d",activity:"#d4a853",quiz:"#9c27b0",dare:"#ff4500"};
+    const tb={question:"#e8175d15",activity:"#d4a85315",quiz:"#9c27b015",dare:"#ff450015"};
+    const done=fateIdx>=24;
+
+    return(
+      <div style={{...root,justifyContent:"flex-start"}}><Sparks/>
+        <div style={{width:"100%",maxWidth:480,minHeight:"100vh",display:"flex",flexDirection:"column",position:"relative",zIndex:1,padding:"14px 14px"}}>
+
+          {/* Header */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <button className="sfb" onClick={()=>setScreen("game")} style={{background:"none",color:"#6a5a7a",fontSize:14}}>← Back</button>
+            <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:"#d4a853",flex:1,textAlign:"center"}}>🃏 Cards of Fate</h2>
+          </div>
+
+          {/* Progress */}
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+            <span style={{color:"#5a4a6a",fontSize:12,whiteSpace:"nowrap"}}>{24-fateIdx} left</span>
+            <div style={{height:4,flex:1,background:"#1a1030",borderRadius:2,overflow:"hidden"}}>
+              <div style={{width:`${(fateIdx/24)*100}%`,height:"100%",background:"linear-gradient(90deg,#d4a853,#e8175d)",transition:"width .4s ease"}}/>
+            </div>
+            <span style={{color:"#d4a853",fontSize:12,fontWeight:700,whiteSpace:"nowrap"}}>{fateIdx}/24</span>
+          </div>
+
+          {!done?(
+            <>
+              {/* Turn indicator */}
+              <div style={{background:"#110820",border:`1px solid ${fateTurn===0?"#e8175d33":"#d4a85333"}`,
+                borderRadius:12,padding:"11px 16px",marginBottom:18,textAlign:"center"}}>
+                <p style={{color:fateTurn===0?"#e8175d":"#d4a853",fontSize:17,fontWeight:700,fontFamily:"'Playfair Display',serif"}}>
+                  {cur.name}'s turn to draw 🃏
+                </p>
+                <p style={{color:"#5a4a6a",fontSize:13,marginTop:3}}>Shuffle the deck in your hands, then tap to reveal</p>
+              </div>
+
+              {/* Card face-down / face-up */}
+              <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                {!fateFlip?(
+                  // Face-down stack
+                  <div style={{position:"relative",width:230,height:310,cursor:"pointer"}} onClick={()=>setFateFlip(true)}>
+                    {[3,2,1].map(offset=>(
+                      <div key={offset} style={{position:"absolute",top:offset*5,left:offset*4,right:-offset*4,
+                        height:290,background:`#${offset===3?"09051a":offset===2?"0e0720":"130a28"}`,
+                        border:"1px solid #1e1030",borderRadius:18,opacity:1-offset*.18}}/>
+                    ))}
+                    <div style={{position:"absolute",inset:0,
+                      background:"linear-gradient(148deg,#1a0a38,#0c0520)",
+                      border:"2px solid #d4a85344",borderRadius:18,
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+                      boxShadow:"0 0 48px #d4a85322",animation:"glow 2.8s ease-in-out infinite"}}>
+                      <div style={{fontSize:62,marginBottom:14}}>🃏</div>
+                      <p style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:"#d4a853",fontWeight:900,letterSpacing:".08em"}}>FATE</p>
+                      <p style={{color:"#5a4a6a",fontSize:14,marginTop:10}}>Tap to reveal your fate</p>
+                    </div>
+                  </div>
+                ):(
+                  // Revealed card
+                  fc&&(
+                    <div style={{width:"100%",maxWidth:370,
+                      background:`linear-gradient(148deg,#150b28,#0e0620)`,
+                      border:`2px solid ${tc[fc.type]||"#d4a853"}44`,borderRadius:20,padding:24,
+                      boxShadow:`0 0 55px ${tc[fc.type]||"#d4a853"}18`,animation:"flipIn .5s ease"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+                        <span style={{background:tb[fc.type],border:`1px solid ${tc[fc.type]||"#d4a853"}44`,
+                          color:tc[fc.type]||"#d4a853",padding:"5px 14px",borderRadius:20,fontSize:13,
+                          textTransform:"uppercase",letterSpacing:".1em",fontWeight:700}}>{fc.type}</span>
+                        <span style={{fontSize:42}}>{fc.emoji}</span>
+                      </div>
+                      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,color:"#f5e6d3",marginBottom:14,lineHeight:1.2}}>{fc.title}</h3>
+                      <p style={{fontSize:17,lineHeight:1.8,color:"#d0bce8"}}>{fc.body}</p>
+                      <div style={{marginTop:18,padding:"10px",background:"#09051a",borderRadius:10,textAlign:"center"}}>
+                        <p style={{color:"#5a4a6a",fontSize:12}}>{cur.name}'s draw · Card {fateIdx+1} of 24</p>
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+
+              {/* Action button */}
+              <div style={{paddingTop:14,paddingBottom:4}}>
+                {fateFlip?(
+                  <button className="sfb" onClick={()=>{
+                    if(fateIdx+1>=24){setFateIdx(24);}
+                    else{setFateIdx(i=>i+1);setFateTurn(t=>(t+1)%2);setFateFlip(false);}
+                  }} style={{width:"100%",padding:17,
+                    background:"linear-gradient(135deg,#d4a853,#c49040)",borderRadius:14,color:"#06020e",
+                    fontSize:18,fontFamily:"'Playfair Display',serif",fontWeight:700,boxShadow:"0 0 28px #d4a85344"}}>
+                    {fateIdx+1>=24?"✨ All Cards Revealed!":"Done — Pass to "+next.name+" →"}
+                  </button>
+                ):(
+                  <p style={{textAlign:"center",color:"#4a3a5a",fontSize:14,fontStyle:"italic",padding:16}}>Tap the card stack to draw…</p>
+                )}
+              </div>
+            </>
+          ):(
+            // All 24 cards done
+            <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:20}}>
+              <div style={{fontSize:72,marginBottom:16}}>🃏✨</div>
+              <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:28,color:"#d4a853",marginBottom:12}}>All Cards Revealed!</h3>
+              <p style={{color:"#c4b0d8",fontSize:16,lineHeight:1.8,marginBottom:24}}>
+                {p1.name} and {p2.name} have shared every card. What a journey.
+              </p>
+              <button className="sfb" onClick={()=>setScreen("game")} style={{padding:"16px 36px",
+                background:"linear-gradient(135deg,#d4a853,#c49040)",borderRadius:14,color:"#06020e",
+                fontSize:18,fontFamily:"'Playfair Display',serif",fontWeight:700}}>
+                Return to Game 🔥
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════════
+  // FINALE
+  // ══════════════════════════════════════════
+  if(screen==="finale") return(
+    <div style={root}><Sparks/>
+      <div style={{position:"absolute",inset:0,background:"radial-gradient(ellipse at center,#e8175d12 0%,transparent 68%)",pointerEvents:"none"}}/>
+      <div style={{textAlign:"center",zIndex:1,maxWidth:400,padding:"28px 20px",animation:"rise .8s ease",overflowY:"auto",maxHeight:"100vh"}}>
+        <div style={{fontSize:78,animation:"hb 1.6s ease-in-out infinite",marginBottom:14}}>❤️‍🔥</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(32px,9vw,50px)",
+          background:"linear-gradient(135deg,#e8175d,#d4a853)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:8}}>
+          SoulFlare Complete!</h2>
+        {couples.length>0&&(
+          <p style={{color:"#d4a853",fontSize:17,fontStyle:"italic",marginBottom:8}}>
+            {couples.map(c=>`${c[0].name} & ${c[1].name}`).join(" · ")}</p>
+        )}
+        <HR/>
+
+        {/* POINTS + AWARD */}
+        <div style={{background:"#110820",border:"1px solid #d4a85333",borderRadius:16,padding:20,marginBottom:18}}>
+          <p style={{color:"#d4a853",fontSize:24,fontWeight:700,fontFamily:"'Playfair Display',serif",marginBottom:8}}>💎 {points} SoulFlare Points</p>
+          {points>=30?(
+            <div style={{padding:"12px",background:"#e8175d14",border:"1px solid #e8175d44",borderRadius:12,animation:"pop .6s ease"}}>
+              <p style={{color:"#e8175d",fontSize:20,fontWeight:700,fontFamily:"'Playfair Display',serif",marginBottom:4}}>🏆 SoulFlare Couple!</p>
+              <p style={{color:"#c4b0d8",fontSize:14,lineHeight:1.6}}>You conquered every puzzle together. This title is yours.</p>
+            </div>
+          ):points>0?(
+            <p style={{color:"#7a6a8a",fontSize:14,marginTop:4}}>Complete more puzzles next game to earn the SoulFlare Couple title!</p>
+          ):(
+            <p style={{color:"#5a4a6a",fontSize:14,marginTop:4}}>Look out for puzzle cards next time to earn points!</p>
+          )}
+        </div>
+
+        <p style={{color:"#c4b0d8",fontSize:17,lineHeight:1.82,margin:"14px 0 20px",padding:"0 6px"}}>
+          You have walked through truth, laughter, vulnerability, and love. May this flame burn brighter every day. 🙏
+        </p>
+
+        <div style={{background:"#110820",border:"1px solid #d4a85333",borderRadius:16,padding:"18px 20px",marginBottom:22,boxShadow:"0 0 32px #d4a85318"}}>
+          <p style={{color:"#d4a853",fontSize:18,fontStyle:"italic",lineHeight:1.72,marginBottom:8}}>
+            "And now these three remain: faith, hope and love. But the greatest of these is love."
+          </p>
+          <p style={{color:"#5a4a6a",fontSize:13}}>— 1 Corinthians 13:13</p>
+        </div>
+
+        <div style={{display:"flex",gap:12}}>
+          <button className="sfb" onClick={()=>{
+            clearG();setScreen("welcome");setRound(0);setMode("EASY");setUsedIds([]);setCard(null);setPoints(0);
+            setPlayers([]);setCouples([]);couplesRef.current=[];
+          }} style={{flex:1,padding:15,background:"#110820",border:"1px solid #1e1030",
+            borderRadius:12,color:"#8a7a9a",fontSize:16,fontFamily:"'Playfair Display',serif"}}>🏠 Main Menu</button>
+          <button className="sfb" onClick={()=>{
+            clearG();const c=couplesRef.current;
+            setRound(0);setMode("EASY");setUsedIds([]);setPoints(0);setCard(null);
+            setScreen("transition");speak("Welcome back. Easy Mode begins.");
+            setTimeout(()=>{setScreen("game");drawCard(0,c,[]);},3800);
+          }} style={{flex:1,padding:15,background:"linear-gradient(135deg,#e8175d,#a8083e)",
+            borderRadius:12,color:"#fff",fontSize:16,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Play Again 🔥</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  return null;
+}
