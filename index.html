@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no"/>
+  <meta name="theme-color" content="#FF4D1C"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="SOULFLARE"/>
+  <meta name="description" content="The couples card game that ignites the fire between you."/>
+  <title>SOULFLARE ❤️‍🔥</title>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="./manifest.json"/>
+
+  <!-- Apple touch icons (inline SVG data URI) -->
+  <link rel="apple-touch-icon" href="./icon-192.svg"/>
+  <link rel="icon" type="image/svg+xml" href="./icon-192.svg"/>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet"/>
+
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --ember:#FF4D1C;--gold:#C9952A;--gold-light:#E8B84B;
+      --cream:#F5ECD7;--blush:#E8C4B0;--night:#0A0705;--night-2:#130E0A;
+      --night-3:#1E1510;--smoke:#4A3828;--ash:#7A6050;--silk:#B09070;
+    }
+    html,body{height:100%;background:var(--night);overflow:hidden;}
+    #root{height:100%;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;}
+    body{font-family:'Cormorant Garamond',serif;color:var(--cream);}
+
+    /* Safe area padding for notched phones */
+    .safe-top{padding-top:env(safe-area-inset-top);}
+    .safe-bottom{padding-bottom:env(safe-area-inset-bottom);}
+
+    /* Particles */
+    .particle{position:fixed;border-radius:50%;pointer-events:none;z-index:0;animation:rise linear infinite;}
+    @keyframes rise{0%{transform:translateY(0) scale(1);opacity:0.8;}100%{transform:translateY(-105vh) scale(0);opacity:0;}}
+
+    /* Grain */
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");pointer-events:none;z-index:1;opacity:0.4;}
+
+    .screen{position:relative;z-index:2;}
+    .fade-in{animation:fadeIn 0.55s ease forwards;}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(18px);}to{opacity:1;transform:translateY(0);}}
+
+    /* Card flip */
+    .card-scene{perspective:1200px;}
+    .card-wrap{position:relative;transform-style:preserve-3d;transition:transform 0.75s cubic-bezier(0.4,0,0.2,1);cursor:pointer;}
+    .card-wrap.flipped{transform:rotateY(180deg);}
+    .card-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:22px;}
+    .card-rear{transform:rotateY(180deg);}
+
+    /* Animations */
+    @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.45;}}
+    @keyframes slowHB{
+      0%  {transform:scale(1);   filter:drop-shadow(0 0 18px rgba(255,77,28,0.5));}
+      30% {transform:scale(1.13);filter:drop-shadow(0 0 42px rgba(255,77,28,0.9));}
+      50% {transform:scale(1);   filter:drop-shadow(0 0 18px rgba(255,77,28,0.5));}
+      65% {transform:scale(1.07);filter:drop-shadow(0 0 30px rgba(255,77,28,0.7));}
+      100%{transform:scale(1);   filter:drop-shadow(0 0 18px rgba(255,77,28,0.5));}
+    }
+    @keyframes loaderOut{0%{opacity:1;}100%{opacity:0;pointer-events:none;}}
+    @keyframes glowCard{0%,100%{box-shadow:0 0 20px rgba(255,77,28,0.3);}50%{box-shadow:0 0 55px rgba(255,77,28,0.7),0 0 100px rgba(255,77,28,0.25);}}
+    @keyframes glowLegend{0%,100%{box-shadow:0 0 30px rgba(201,149,42,0.4),inset 0 0 30px rgba(201,149,42,0.1);}50%{box-shadow:0 0 80px rgba(201,149,42,0.8),0 0 160px rgba(201,149,42,0.4),inset 0 0 50px rgba(201,149,42,0.2);}}
+    @keyframes legendFlash{0%{opacity:0;transform:scale(0.85);}15%{opacity:1;transform:scale(1.04);}30%{transform:scale(1);}85%{opacity:1;}100%{opacity:0;}}
+    @keyframes tPulse{0%,100%{color:var(--cream);}50%{color:var(--ember);}}
+    @keyframes slideUp{from{transform:translateY(100%);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    @keyframes confetti{0%{transform:translateY(-20px) rotate(0deg);opacity:1;}100%{transform:translateY(110vh) rotate(720deg);opacity:0;}}
+    @keyframes narratorIn{0%{opacity:0;letter-spacing:8px;}100%{opacity:1;letter-spacing:1px;}}
+    @keyframes compatPop{0%{transform:scale(0);opacity:0;}60%{transform:scale(1.1);}100%{transform:scale(1);opacity:1;}}
+    @keyframes unlockIn{from{transform:translateY(-56px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+    @keyframes modeReveal{0%{opacity:0;transform:scale(0.8) translateY(20px);}100%{opacity:1;transform:scale(1) translateY(0);}}
+    @keyframes phaseBar{0%{width:0%;}100%{width:var(--pw);}}
+
+    .btn{font-family:'Cormorant Garamond',serif;cursor:pointer;border:none;outline:none;transition:all 0.22s ease;-webkit-tap-highlight-color:transparent;}
+    .btn:active{transform:scale(0.96);}
+    input{-webkit-appearance:none;appearance:none;}
+    input:focus{outline:none;}
+
+    ::-webkit-scrollbar{width:3px;}
+    ::-webkit-scrollbar-track{background:var(--night-2);}
+    ::-webkit-scrollbar-thumb{background:var(--smoke);border-radius:2px;}
+
+    .timer-ring{transition:stroke-dashoffset 1s linear;transform-origin:center;transform:rotate(-90deg);}
+    .card-legendary{animation:glowLegend 2s ease-in-out infinite;}
+    .card-rare{animation:glowCard 3s ease-in-out infinite;}
+
+    /* Mode transition overlay */
+    .mode-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;background:rgba(10,7,5,0.97);}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<!-- React + Babel CDN -->
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+// ─── SERVICE WORKER REGISTRATION ─────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+// ─── GAME DATA ────────────────────────────────────────────────
+// Total game = 24 rounds: 8 EASY → 8 LOVE → 8 CRAZY
+// Mode auto-advances — players never pick it.
+const TOTAL_ROUNDS = 24;
+const MODE_BOUNDARIES = { EASY: [1,8], LOVE: [9,16], CRAZY: [17,24] };
+
+function getModeForRound(round) {
+  if (round <= 8)  return "EASY";
+  if (round <= 16) return "LOVE";
+  return "CRAZY";
+}
+
+const MODE_CFG = {
+  EASY:  { label:"Easy Mode",  color:"#C9952A", bg:"rgba(201,149,42,0.12)", emoji:"✨", desc:"Light, fun & playful",        narType:"fun" },
+  LOVE:  { label:"Love Mode",  color:"#E8628A", bg:"rgba(232,98,138,0.12)", emoji:"❤️", desc:"Deep & romantic",            narType:"trust" },
+  CRAZY: { label:"Crazy Love", color:"#FF4D1C", bg:"rgba(255,77,28,0.12)",  emoji:"🔥", desc:"Intense & unforgettable",    narType:"spicy" },
+};
+
+const CARDS = [
+  {id:"e01",mode:"EASY", cat:"fun",           rar:"common",   hot:1, dur:null, pts:10, title:"Little Habits",      ins:"{p1}, tell {p2} one tiny habit they have that secretly makes you smile.",                                             fu:"After answering, hold eye contact for 5 seconds."},
+  {id:"e02",mode:"EASY", cat:"truth",          rar:"common",   hot:2, dur:null, pts:10, title:"First Impression",   ins:"{p1}, what was your very first honest thought when you saw {p2} for the first time?",                               fu:"{p2}, say whether your first impression was accurate or completely wrong."},
+  {id:"e03",mode:"EASY", cat:"activity",       rar:"common",   hot:2, dur:45,  pts:15, title:"Silent Stare",        ins:"Sit knee-to-knee and maintain uninterrupted eye contact without laughing.",                                          fu:"Who broke first?"},
+  {id:"e04",mode:"EASY", cat:"bible",          rar:"rare",     hot:1, dur:null, pts:20, title:"Prayer Moment",      ins:"Together, say one thing you are grateful for in your relationship and end with a short prayer for each other.",        fu:"Hold hands for 10 seconds in silence afterward."},
+  {id:"e05",mode:"EASY", cat:"fun",            rar:"common",   hot:2, dur:null, pts:10, title:"Finish My Sentence", ins:'{p1}, complete this: "The moment I knew I liked {p2} was…"',                                                        fu:"{p2}, respond with what you were feeling at that exact moment."},
+  {id:"e06",mode:"EASY", cat:"truth",          rar:"common",   hot:3, dur:null, pts:12, title:"Secret Admirer",     ins:"{p1}, name one quality in {p2} that you secretly brag about to others.",                                            fu:"Hold eye contact the entire time."},
+  {id:"l01",mode:"LOVE", cat:"vulnerability",  rar:"common",   hot:4, dur:null, pts:20, title:"Safe Place",         ins:"{p1}, describe a moment when {p2} made you feel emotionally safe.",                                                 fu:"{p2}, respond with what you remember most about that moment."},
+  {id:"l02",mode:"LOVE", cat:"affection",      rar:"common",   hot:5, dur:60,  pts:25, title:"Slow Dance",          ins:"Stand close together and slow dance for one full minute, even if there is no music.",                               fu:"Whisper one thing you never want your relationship to lose."},
+  {id:"l03",mode:"LOVE", cat:"revelation",     rar:"rare",     hot:5, dur:null, pts:30, title:"Unspoken Fear",      ins:"Share one quiet fear you have about love, relationships, or the future.",                                            fu:"Your partner must respond only with reassurance and understanding."},
+  {id:"l04",mode:"LOVE", cat:"vulnerability",  rar:"common",   hot:4, dur:null, pts:20, title:"Love Language",      ins:"{p1}, describe exactly how {p2} can make you feel most loved — in detail.",                                          fu:"{p2}, commit to one specific thing you will do this week."},
+  {id:"l05",mode:"LOVE", cat:"affection",      rar:"rare",     hot:6, dur:null, pts:30, title:"Forehead Kiss",      ins:"Without speaking, place a slow kiss on {p2}'s forehead. {p2}, close your eyes and receive it fully.",               fu:"Both share what you felt in that moment."},
+  {id:"c01",mode:"CRAZY",cat:"spicy",          rar:"common",   hot:7, dur:90,  pts:40, title:"Close Enough",        ins:"Sit extremely close without speaking for 90 seconds. Let tension build naturally.",                                  fu:"Whisper what you are thinking at the end."},
+  {id:"c02",mode:"CRAZY",cat:"trust",          rar:"rare",     hot:8, dur:null, pts:45, title:"Hidden Truth",       ins:"Reveal something emotionally intimate that you have struggled to say out loud.",                                      fu:"The other partner may only listen without interrupting."},
+  {id:"c03",mode:"CRAZY",cat:"spicy",          rar:"legendary",hot:10,dur:null, pts:80, title:"Burning Confession", ins:"Tell your partner one fantasy, desire, or emotional craving you have never fully expressed.",                         fu:"Discuss whether it could realistically become part of your relationship."},
+  {id:"c04",mode:"CRAZY",cat:"spicy",          rar:"rare",     hot:9, dur:null, pts:50, title:"The Mirror",         ins:"{p1}, look {p2} directly in the eyes and slowly say the three things you find most intoxicating about them.",       fu:"{p2}, respond with one word that describes how you feel right now."},
+];
+
+const ACTIVITIES = [
+  {id:"a01",mode:"EASY", cat:"activity",pts:10,dur:null,title:"Back To Back",    ins:"{p1} and {p2}, sit back-to-back and try to stand up together without using your hands.",                                     fu:"First attempt or took multiple tries?"},
+  {id:"a02",mode:"LOVE", cat:"affection",pts:20,dur:60, title:"Slow Dance",      ins:"{p1}, hold {p2} close and slow dance for one full minute without speaking.",                                                 fu:"Whisper one thing you never want to lose about this relationship."},
+  {id:"a03",mode:"CRAZY",cat:"spicy",   pts:50,dur:20, title:"Wall Pin",         ins:"{p1}, gently pin {p2} against the wall and hold intense eye contact for 20 seconds, then whisper what you desire most.",    fu:"What did you whisper?"},
+  {id:"a04",mode:"CRAZY",cat:"trust",   pts:45,dur:null,title:"Blindfold Trust",  ins:"Blindfold {p2}. {p1} must guide them safely around the room using only their voice.",                                      fu:"How much did you trust them?"},
+  {id:"a05",mode:"EASY", cat:"fun",     pts:15,dur:30, title:"Mirror Me",         ins:"Face each other. {p1} makes slow movements; {p2} mirrors them exactly. Switch after 30 seconds.",                          fu:"Who had more fun being mirrored?"},
+  {id:"a06",mode:"LOVE", cat:"affection",pts:25,dur:30,title:"Heartbeat Listen",  ins:"{p2}, place your ear on {p1}'s chest and listen to their heartbeat for 30 seconds. No words allowed.",                    fu:"Describe what that felt like."},
+];
+
+const PUZZLES = [
+  {id:"p01",mode:"EASY", pts:25,title:"Word Sync",       ins:"Without counting down, both must say the same random word at the same time. 3 attempts.",                        fu:"How many tries did it take?"},
+  {id:"p02",mode:"LOVE", pts:35,title:"Memory Builder",  ins:"Together, list your last 5 meaningful relationship moments in the correct chronological order.",                  fu:"Did you agree on all five?"},
+  {id:"p03",mode:"CRAZY",pts:60,title:"Heartbeat Code",  ins:"{p1} taps a secret rhythm on {p2}'s hand. {p2} must repeat it perfectly within 3 tries.",                       fu:"Could {p2} decode the rhythm?"},
+  {id:"p04",mode:"CRAZY",pts:75,title:"Desire Decoder",  ins:"One partner writes a hidden desire using only emojis. The other must correctly decode it.",                      fu:"How close was the guess?"},
+  {id:"p05",mode:"LOVE", pts:40,title:"Finish Together",  ins:'Both write the ending to: "Our love feels like…" separately. Then reveal and compare.',                          fu:"Were your answers similar or totally different?"},
+];
+
+const FATE_CARDS = [
+  {id:"f01",type:"question",pts:30,title:"Hidden Desire",    ins:"Reveal one thing you secretly wish your partner did more often."},
+  {id:"f02",type:"activity",pts:50,title:"7 Second Kiss",    ins:"Kiss your partner continuously for 7 seconds."},
+  {id:"f03",type:"quiz",    pts:20,title:"Relationship Quiz",ins:"What was the exact first message you ever sent your partner? Whoever gets it right wins the round."},
+  {id:"f04",type:"spicy",   pts:60,title:"Intense Whisper",  ins:"Whisper your most dangerous romantic thought into your partner's ear."},
+  {id:"f05",type:"question",pts:35,title:"The One Thing",    ins:"If you could change one small thing about your relationship dynamic, what would it be?"},
+  {id:"f06",type:"activity",pts:45,title:"Eyes Closed",      ins:"Both close your eyes. Trace your partner's face slowly with your fingertips for 15 seconds."},
+];
+
+const SECRET_CARDS = [
+  {id:"s01",pts:40,title:"Private Thought",  ins:"Quietly type one hidden thought about your relationship. Your partner may choose whether to read it."},
+  {id:"s02",pts:50,title:"Hidden Desire",    ins:"Reveal one desire — only if you feel emotionally safe enough right now."},
+  {id:"s03",pts:55,title:"The Unspoken One", ins:"Type the one thing about your partner you've thought but never said. Hand them the phone."},
+];
+
+const LEGENDARY_EVENTS = [
+  {id:"leg1",title:"✦ Golden Flame",    desc:"Both partners reveal something they have never admitted before.",       bonus:100},
+  {id:"leg2",title:"✦ Double Intensity",desc:"This challenge rewards double points. Give it everything you have.",    bonus:50},
+  {id:"leg3",title:"✦ Heartstorm",      desc:"One partner asks any question. Complete honesty is guaranteed.",        bonus:120},
+];
+
+const ENV_TASKS = [
+  "Find something red in the room — hold it together.",
+  "Sit on the floor facing each other for this round.",
+  "Move to the darkest part of the room.",
+  "Find an object that represents your relationship. Explain it.",
+  "Switch seats and imitate each other for 15 seconds.",
+  "Each find one small object to 'gift' the other right now.",
+];
+
+const PHONE_TASKS = [
+  "Take a romantic selfie together right now.",
+  "Record a 10-second voice note for your partner.",
+  "Type something emotional and hand your phone over.",
+  "Find your favourite couple picture together.",
+  "Set a 3-word description of tonight as your wallpaper.",
+];
+
+const DUAL_CHOICES = [
+  {title:"Choose Your Path",    a:"Emotional intimacy challenge", b:"Risky romantic challenge"},
+  {title:"Tonight's Direction", a:"Playful fun activity",         b:"Dangerous truth question"},
+  {title:"Pick Your Fate",      a:"Trust-building moment",        b:"Spicy tension challenge"},
+];
+
+const NARRATOR = {
+  fun:   ["The flame awakens…","Let laughter be the spark tonight.","Play is how lovers remember to breathe."],
+  trust: ["Tonight, hearts will speak honestly.","Trust is earned through vulnerability.","Only honesty can deepen the fire."],
+  spicy: ["Desire burns brightest when tension rises.","The atmosphere grows dangerous…","Some flames cannot be contained."],
+};
+
+const BOTTLE_ZONES   = ["Kiss","Compliment","Whisper","Dance","Truth","Hug","Tease","Challenge","Eye Contact","Massage","Confession","Fantasy"];
+const BOTTLE_ACTIONS = {
+  Kiss:"Give your partner a slow, deliberate kiss for 5 full seconds.",
+  Compliment:"Give your partner a genuine, specific compliment while holding eye contact.",
+  Whisper:"Whisper something seductive or deeply romantic into your partner's ear.",
+  Dance:"Dance together slowly for 20 seconds, as close as you dare.",
+  Truth:"Reveal something you've secretly wanted to say but haven't.",
+  Hug:"Hold each other tightly for 15 seconds. No speaking.",
+  Tease:"Playfully tease your partner — no insults allowed.",
+  Challenge:"Both partners complete a dare chosen by the other.",
+  "Eye Contact":"Maintain unbroken eye contact without laughing for 30 seconds.",
+  Massage:"Give your partner a 30-second shoulder massage.",
+  Confession:"Confess one thing you deeply admire about your partner.",
+  Fantasy:"Describe your ideal romantic evening together — in detail.",
+};
+
+const TIMELINE_CFG = {
+  NEWLY_DATING:  {label:"Newly Dating",  emoji:"🌱"},
+  ENGAGED:       {label:"Engaged",       emoji:"💍"},
+  MARRIED:       {label:"Married",       emoji:"💒"},
+  LONG_DISTANCE: {label:"Long Distance", emoji:"✈️"},
+};
+
+// Per-mode game flow (8 rounds each)
+const FLOW = {
+  EASY:  ["card","activity","card","puzzle","dual","card","env","card"],
+  LOVE:  ["narrator","card","activity","card","bottle","puzzle","dual","fate"],
+  CRAZY: ["narrator","card","bottle","activity","secret","puzzle","dual","fate"],
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────
+const inj = (t,p1,p2) => t ? t.replaceAll("{p1}",p1||"Player 1").replaceAll("{p2}",p2||"Player 2") : t;
+const rnd = arr => arr[Math.floor(Math.random()*arr.length)];
+const rw  = r => r==="legendary"?1:r==="rare"?3:8;
+function pickW(cards){const pool=[];cards.forEach(c=>{for(let i=0;i<rw(c.rar||"common");i++)pool.push(c);});return pool[Math.floor(Math.random()*pool.length)];}
+function getCards(mode,used,maxH=10){return CARDS.filter(c=>c.mode===mode&&!used.includes(c.id)&&c.hot<=maxH);}
+function maybeL(){return Math.random()<=0.15?rnd(LEGENDARY_EVENTS):null;}
+
+// Energy
+const mkE=()=>({romance:0,trust:0,tension:0,chaos:0,intimacy:0});
+function addE(e,cat){
+  const n={...e};
+  if(cat==="trust"||cat==="vulnerability"){n.trust+=15;n.romance+=5;}
+  else if(cat==="spicy"){n.intimacy+=20;n.tension+=10;}
+  else if(cat==="fun"||cat==="activity"){n.chaos+=10;n.romance+=5;}
+  else if(cat==="revelation"||cat==="affection"){n.trust+=10;n.romance+=12;}
+  else{n.romance+=8;}
+  return n;
+}
+function coupleType(e){
+  const m=[["intimacy",e.intimacy],["chaos",e.chaos],["trust",e.trust],["romance",e.romance]].sort((a,b)=>b[1]-a[1])[0];
+  if(m[0]==="intimacy"&&m[1]>=25) return{title:"Midnight Lovers",emoji:"🌙",color:"#F472B6"};
+  if(m[0]==="chaos"   &&m[1]>=25) return{title:"Chaos Flames",   emoji:"🔥",color:"var(--ember)"};
+  if(m[0]==="trust"   &&m[1]>=25) return{title:"Soulbound",       emoji:"❤️", color:"#60A5FA"};
+  return{title:"Flamekeepers",emoji:"✨",color:"var(--gold)"};
+}
+const mkU=()=>({legendaryDeck:false,afterDarkMode:false,chaosMode:false});
+function applyU(pts,u){const n={...u};if(pts>=300)n.legendaryDeck=true;if(pts>=600)n.afterDarkMode=true;if(pts>=900)n.chaosMode=true;return n;}
+function calcTitle(pts){
+  if(pts>=1000)return{title:"SOULFLARE Legends",emoji:"👑"};
+  if(pts>=700) return{title:"SOULFLARE Masters",emoji:"🔥"};
+  if(pts>=400) return{title:"SOULFLARE Couple", emoji:"❤️"};
+  return{title:"SOULFLARE Beginners",emoji:"✨"};
+}
+function speak(text){
+  if(!window.speechSynthesis)return;
+  window.speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=0.88;u.pitch=1;u.volume=1;
+  const vs=window.speechSynthesis.getVoices();
+  const pref=vs.find(v=>["Samantha","Karen","Moira","Daniel"].some(n=>v.name.includes(n)));
+  if(pref)u.voice=pref;
+  window.speechSynthesis.speak(u);
+}
+async function enhanceCard(card,p1,p2){
+  try{
+    const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:500,
+        system:"You are the SOULFLARE narrator. Rewrite this card instruction to feel personal and poetic using the players' actual names. Keep the core activity. Return ONLY valid JSON: {title,ins,fu}. No markdown.",
+        messages:[{role:"user",content:`Card:${JSON.stringify({title:card.title,ins:card.ins,fu:card.fu,mode:card.mode,cat:card.cat})}\nPlayers:${p1} and ${p2}`}]})});
+    const d=await r.json();
+    const p=JSON.parse(d.content?.[0]?.text?.replace(/```json|```/g,"").trim()||"{}");
+    return{...card,title:p.title||card.title,ins:p.ins||card.ins,fu:p.fu||card.fu};
+  }catch{return{...card,ins:inj(card.ins,p1,p2),fu:inj(card.fu,p1,p2)};}
+}
+
+// ─── STATIC PARTICLES ────────────────────────────────────────
+const PTCLS=Array.from({length:16},(_,i)=>({id:i,left:`${Math.random()*100}%`,sz:`${1+Math.random()*4}px`,dur:`${5+Math.random()*9}s`,del:`${Math.random()*9}s`,clr:Math.random()>0.5?"var(--ember)":"var(--gold)",op:0.15+Math.random()*0.45}));
+function Particles(){
+  return <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:0}}>{PTCLS.map(p=><div key={p.id} className="particle" style={{left:p.left,bottom:0,width:p.sz,height:p.sz,background:p.clr,opacity:p.op,animationDuration:p.dur,animationDelay:p.del}}/>)}</div>;
+}
+
+// ─── TIMER RING ───────────────────────────────────────────────
+function TimerRing({sec,total,size=80}){
+  const r=(size/2)-6,circ=2*Math.PI*r,off=circ*(1-sec/total),low=sec<=10;
+  return(
+    <div style={{position:"relative",width:size,height:size,margin:"0 auto"}}>
+      <svg width={size} height={size} style={{transform:"rotate(-90deg)"}}>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.07)" strokeWidth="5"/>
+        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={low?"var(--ember)":"var(--gold)"} strokeWidth="5" strokeLinecap="round"
+          strokeDasharray={circ} strokeDashoffset={off} className="timer-ring"
+          style={{filter:low?"drop-shadow(0 0 8px var(--ember))":"drop-shadow(0 0 6px var(--gold))"}}/>
+      </svg>
+      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'DM Mono',monospace",fontSize:size/4,color:low?"var(--ember)":"var(--cream)",animation:low?"tPulse 1s ease infinite":"none"}}>{sec}</div>
+    </div>
+  );
+}
+
+// ─── RARITY BADGE ────────────────────────────────────────────
+function RarBadge({rar}){
+  const m={legendary:{lbl:"✦ LEGENDARY",clr:"var(--gold)",bg:"rgba(201,149,42,0.2)",glow:"0 0 18px rgba(201,149,42,0.5)"},rare:{lbl:"◈ RARE",clr:"#A78BFA",bg:"rgba(167,139,250,0.15)",glow:"0 0 14px rgba(167,139,250,0.4)"},common:{lbl:"· COMMON",clr:"var(--ash)",bg:"rgba(122,96,80,0.12)",glow:"none"}}[rar||"common"];
+  return<span style={{display:"inline-block",padding:"3px 11px",borderRadius:20,fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:m.clr,background:m.bg,boxShadow:m.glow,border:`1px solid ${m.clr}38`}}>{m.lbl}</span>;
+}
+
+// ─── MODE TRANSITION OVERLAY ─────────────────────────────────
+function ModeTransition({mode,onDone}){
+  const cfg=MODE_CFG[mode];
+  useEffect(()=>{const t=setTimeout(onDone,3200);return()=>clearTimeout(t);},[]);
+  return(
+    <div className="mode-overlay">
+      <div style={{textAlign:"center",padding:40,animation:"modeReveal 0.8s cubic-bezier(0.34,1.56,0.64,1) forwards"}}>
+        <div style={{fontSize:72,marginBottom:20,display:"inline-block",animation:"slowHB 2.2s ease-in-out infinite"}}>{cfg.emoji}</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:5,color:cfg.color,marginBottom:12}}>ENTERING</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:48,fontWeight:900,background:`linear-gradient(135deg,${cfg.color},var(--ember))`,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:10}}>{cfg.label}</h2>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontStyle:"italic",color:"var(--silk)",marginBottom:28}}>{cfg.desc}</p>
+        <div style={{width:180,margin:"0 auto"}}>
+          <div style={{height:2,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
+            <div style={{"--pw":"100%",width:"100%",height:"100%",borderRadius:2,background:`linear-gradient(90deg,${cfg.color},var(--ember))`,animation:"phaseBar 2.8s ease forwards"}}/>
+          </div>
+        </div>
+        <button onClick={onDone} style={{marginTop:24,background:"none",border:"1px solid rgba(255,255,255,0.12)",borderRadius:30,padding:"8px 24px",color:"var(--ash)",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,cursor:"pointer"}}>READY</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── NARRATOR BANNER ─────────────────────────────────────────
+function NarratorBanner({line,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,3200);return()=>clearTimeout(t);},[]);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:50,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(10,7,5,0.93)",backdropFilter:"blur(10px)"}}>
+      <div style={{textAlign:"center",padding:"40px 32px"}}>
+        <div style={{fontSize:52,marginBottom:24,display:"inline-block",animation:"slowHB 2.2s ease-in-out infinite"}}>❤️‍🔥</div>
+        <p style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontStyle:"italic",color:"var(--cream)",maxWidth:300,lineHeight:1.6,margin:"0 auto 24px",animation:"narratorIn 1.2s ease forwards"}}>{line}</p>
+        <button onClick={onDone} style={{background:"none",border:"1px solid rgba(255,255,255,0.15)",borderRadius:30,padding:"8px 24px",color:"var(--ash)",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,cursor:"pointer"}}>CONTINUE</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── LEGENDARY OVERLAY ───────────────────────────────────────
+function LegOverlay({ev,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,3800);return()=>clearTimeout(t);},[]);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:60,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(10,7,5,0.97)"}}>
+      <div style={{textAlign:"center",padding:40,animation:"legendFlash 3.8s ease forwards"}}>
+        <div style={{fontSize:60,marginBottom:16}}>👑</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:5,color:"var(--gold)",marginBottom:12}}>LEGENDARY EVENT</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,background:"linear-gradient(135deg,var(--gold-light),var(--ember))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:12}}>{ev.title}</h2>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontStyle:"italic",color:"var(--blush)",maxWidth:280,lineHeight:1.6,margin:"0 auto 16px"}}>{ev.desc}</p>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:14,color:"var(--gold)",marginBottom:20}}>+{ev.bonus} bonus pts</div>
+        <button onClick={onDone} className="btn" style={{padding:"12px 32px",borderRadius:30,background:"linear-gradient(135deg,var(--gold),var(--ember))",color:"#fff",fontSize:18,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Accept</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── POINTS TOAST ────────────────────────────────────────────
+function Toast({pts,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,1700);return()=>clearTimeout(t);},[]);
+  return<div style={{position:"fixed",top:"env(safe-area-inset-top, 0px)",marginTop:76,left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--gold),var(--ember))",color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,padding:"10px 28px",borderRadius:50,zIndex:999,boxShadow:"0 8px 40px rgba(255,77,28,0.5)",animation:"slideUp 0.4s ease forwards",whiteSpace:"nowrap"}}>+{pts} pts ✦</div>;
+}
+
+// ─── ENERGY BARS ─────────────────────────────────────────────
+function EnergyBars({energy,compact=false}){
+  const bars=[
+    {k:"romance", l:"Romance", c:"#F472B6"},
+    {k:"trust",   l:"Trust",   c:"#60A5FA"},
+    {k:"tension", l:"Tension", c:"var(--ember)"},
+    {k:"intimacy",l:"Intimacy",c:"#A78BFA"},
+    {k:"chaos",   l:"Chaos",   c:"var(--gold)"},
+  ];
+  const max=Math.max(...bars.map(b=>energy[b.k]),40);
+  return(
+    <div style={{padding:compact?"0":"4px 0"}}>
+      {!compact&&<div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:3,color:"var(--ash)",marginBottom:12}}>RELATIONSHIP ENERGY</div>}
+      {bars.map(b=>(
+        <div key={b.k} style={{marginBottom:compact?6:9}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:compact?8:9,color:b.c,letterSpacing:1}}>{b.l.toUpperCase()}</span>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:compact?8:9,color:"var(--smoke)"}}>{energy[b.k]}</span>
+          </div>
+          <div style={{height:3,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
+            <div style={{height:"100%",borderRadius:2,background:b.c,width:`${Math.min((energy[b.k]/max)*100,100)}%`,transition:"width 0.6s ease",boxShadow:`0 0 8px ${b.c}80`}}/>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── HUD ─────────────────────────────────────────────────────
+function HUD({round,pts,mode,p1,p2,energy,ct,onMenu,onE}){
+  const cfg=MODE_CFG[mode];
+  const pct=((round-1)/TOTAL_ROUNDS)*100;
+  const modePct = mode==="EASY"?(round/8)*100:mode==="LOVE"?((round-8)/8)*100:((round-16)/8)*100;
+  return(
+    <div style={{position:"sticky",top:0,zIndex:10,background:"linear-gradient(180deg,rgba(10,7,5,0.98) 0%,rgba(10,7,5,0.82) 100%)",backdropFilter:"blur(14px)",padding:`calc(env(safe-area-inset-top, 0px) + 10px) 18px 10px`,borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:cfg.color}}>{cfg.emoji} {cfg.label}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:13,color:"var(--silk)"}}>{p1} & {p2}</div>
+        </div>
+        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:"var(--gold)"}}>✦ {pts} PTS</div>
+            <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:11,fontStyle:"italic",color:ct.color}}>{ct.emoji} {ct.title}</div>
+          </div>
+          <button onClick={onE} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.09)",borderRadius:7,padding:"5px 8px",color:"var(--ash)",fontFamily:"'DM Mono',monospace",fontSize:11,cursor:"pointer"}}>⚡</button>
+          <button onClick={onMenu} style={{background:"none",border:"none",color:"var(--smoke)",fontFamily:"'DM Mono',monospace",fontSize:11,cursor:"pointer"}}>✕</button>
+        </div>
+      </div>
+      {/* Full journey bar */}
+      <div style={{height:2,background:"rgba(255,255,255,0.05)",borderRadius:2,marginBottom:4}}>
+        <div style={{height:"100%",background:`linear-gradient(90deg,#C9952A,#E8628A,var(--ember))`,borderRadius:2,width:`${pct}%`,transition:"width 0.5s ease"}}/>
+      </div>
+      {/* Mode progress */}
+      <div style={{display:"flex",gap:3}}>
+        {["EASY","LOVE","CRAZY"].map(m=>{
+          const active=m===mode;
+          const c=MODE_CFG[m];
+          const done=m==="EASY"&&mode!=="EASY"?100:m==="LOVE"&&mode==="CRAZY"?100:active?modePct:0;
+          return(
+            <div key={m} style={{flex:1}}>
+              <div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",background:c.color,borderRadius:2,width:`${done}%`,transition:"width 0.4s ease",boxShadow:active?`0 0 6px ${c.color}`:""}}/>
+              </div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:7,color:active?c.color:"var(--smoke)",letterSpacing:1,marginTop:2,textAlign:"center"}}>{c.emoji}</div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,color:"var(--smoke)",marginTop:3}}>Round {round}/{TOTAL_ROUNDS}</div>
+    </div>
+  );
+}
+
+// ─── CARD DISPLAY ────────────────────────────────────────────
+function CardDisplay({card,p1,p2,mode,onComplete,onSkip}){
+  const [flipped,setFlipped]=useState(false);
+  const [timer,setTimer]=useState(card.dur||null);
+  const [tActive,setTA]=useState(false);
+  const [phase,setPhase]=useState("main");
+  const iv=useRef(null);
+  useEffect(()=>{setFlipped(false);setTimer(card.dur||null);setTA(false);setPhase("main");return()=>clearInterval(iv.current);},[card]);
+  useEffect(()=>{if(tActive&&timer>0){iv.current=setInterval(()=>{setTimer(t=>{if(t<=1){clearInterval(iv.current);setTA(false);return 0;}return t-1;});},1000);}return()=>clearInterval(iv.current);},[tActive]);
+  const acc={spicy:"var(--ember)",trust:"#A78BFA",vulnerability:"#60B4FF",affection:"#F472B6",fun:"var(--gold)",truth:"#34D399",activity:"var(--gold-light)",revelation:"#FB923C",bible:"#C084FC",puzzle:"#22D3EE",question:"#A3E635"}[card.cat||card.type]||"var(--gold)";
+  const bg={legendary:"linear-gradient(145deg,#1a1200,#2d1f00,#1a1200)",rare:"linear-gradient(145deg,#0d0a18,#1a1530,#0d0a18)",common:"linear-gradient(145deg,var(--night-2),var(--night-3),var(--night-2))"}[card.rar||"common"];
+  const rcls=card.rar==="legendary"?"card-legendary":card.rar==="rare"?"card-rare":"";
+  return(
+    <div className="fade-in" style={{padding:"0 18px"}}>
+      <div className="card-scene" style={{height:440,marginBottom:18}}>
+        <div className={`card-wrap ${rcls}`} style={{height:440}} onClick={()=>!flipped&&setFlipped(true)}>
+          <div className="card-face" style={{background:"linear-gradient(145deg,var(--night-2),var(--night-3))",border:`2px solid ${acc}38`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <div style={{fontSize:54,marginBottom:14,opacity:0.55,animation:"pulse 3s ease infinite"}}>❤️‍🔥</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:"var(--cream)",opacity:0.25}}>SOULFLARE</div>
+            <div style={{marginTop:18,fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--ash)",letterSpacing:2}}>TAP TO REVEAL</div>
+          </div>
+          <div className="card-face card-rear" style={{background:bg,border:`2px solid ${acc}28`,display:"flex",flexDirection:"column",padding:24}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+              <div>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:3,color:acc,marginBottom:5,textTransform:"uppercase"}}>{card.cat||card.type}</div>
+                <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,lineHeight:1.1,color:"var(--cream)"}}>{card.title}</h3>
+              </div>
+              <RarBadge rar={card.rar||"common"}/>
+            </div>
+            <div style={{height:1,background:`linear-gradient(90deg,transparent,${acc}55,transparent)`,marginBottom:18}}/>
+            <div style={{flex:1}}>
+              <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,lineHeight:1.65,color:"var(--cream)",fontStyle:"italic"}}>{inj(card.ins,p1,p2)}</p>
+              {phase==="followup"&&card.fu&&(
+                <div style={{marginTop:14,padding:"12px 14px",background:`${acc}14`,borderRadius:10,borderLeft:`3px solid ${acc}`}}>
+                  <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:2,color:acc,marginBottom:5}}>FOLLOW UP ↓</div>
+                  <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,lineHeight:1.5,color:"var(--blush)",fontStyle:"italic"}}>{inj(card.fu,p1,p2)}</p>
+                </div>
+              )}
+            </div>
+            {card.dur&&phase==="main"&&(
+              <div style={{marginTop:14,textAlign:"center"}}>
+                {tActive||timer!==card.dur
+                  ?<TimerRing sec={timer} total={card.dur} size={72}/>
+                  :<button className="btn" onClick={e=>{e.stopPropagation();setTA(true);}} style={{padding:"7px 22px",borderRadius:30,background:`${acc}1a`,border:`1px solid ${acc}`,color:acc,fontFamily:"'DM Mono',monospace",fontSize:11,letterSpacing:1}}>⏱ Start {card.dur}s Timer</button>
+                }
+              </div>
+            )}
+            {card.pts&&<div style={{position:"absolute",top:14,right:70,background:`${acc}1a`,border:`1px solid ${acc}38`,borderRadius:20,padding:"3px 10px",fontFamily:"'DM Mono',monospace",fontSize:10,color:acc}}>+{card.pts}pts</div>}
+          </div>
+        </div>
+      </div>
+      {flipped?(
+        <div className="fade-in" style={{display:"flex",flexDirection:"column",gap:9}}>
+          {phase==="main"&&card.fu&&(
+            <button className="btn" onClick={()=>{setPhase("followup");speak(inj(card.fu,p1,p2));}} style={{padding:"13px",borderRadius:11,background:`${acc}1a`,border:`1px solid ${acc}55`,color:acc,fontSize:16,fontFamily:"'Playfair Display',serif"}}>↓ Reveal Follow-Up</button>
+          )}
+          <button className="btn" onClick={onComplete} style={{padding:"15px",borderRadius:11,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700,boxShadow:"0 6px 28px rgba(255,77,28,0.35)"}}>✓ Completed — Next Card</button>
+          <button className="btn" onClick={onSkip} style={{padding:"9px",borderRadius:11,background:"transparent",border:"1px solid rgba(255,255,255,0.07)",color:"var(--smoke)",fontSize:13}}>Skip</button>
+        </div>
+      ):(
+        <div style={{textAlign:"center",color:"var(--smoke)",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2}}>TAP CARD TO REVEAL</div>
+      )}
+    </div>
+  );
+}
+
+// ─── DUAL CHOICE ─────────────────────────────────────────────
+function DualChoice({p1,p2,onChoose}){
+  const [c]=useState(()=>rnd(DUAL_CHOICES));
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontSize:32,marginBottom:12}}>🎭</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--gold)",marginBottom:7}}>DUAL CHOICE</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,marginBottom:5}}>{c.title}</h3>
+      <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",color:"var(--silk)",marginBottom:24,fontSize:15}}>{p1}, you choose the path for both of you.</p>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        {[{l:c.a,t:"A",cl:"var(--gold)",cat:"trust"},{l:c.b,t:"B",cl:"var(--ember)",cat:"spicy"}].map(({l,t,cl,cat})=>(
+          <button key={t} className="btn" onClick={()=>onChoose(l,cat)} style={{padding:"16px 18px",borderRadius:13,textAlign:"left",background:"rgba(255,255,255,0.03)",border:`1px solid ${cl}48`,color:"var(--cream)",fontSize:18,fontFamily:"'Playfair Display',serif"}}>
+            <span style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:2,color:cl,display:"block",marginBottom:3}}>OPTION {t}</span>{l}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── ENV TASK ────────────────────────────────────────────────
+function EnvCard({onDone}){
+  const [t]=useState(()=>rnd(ENV_TASKS));
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:12}}>🏠</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--ash)",marginBottom:7}}>ENVIRONMENTAL TASK</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,marginBottom:18}}>Use Your Space</h3>
+      <div style={{padding:"22px",background:"rgba(255,255,255,0.03)",borderRadius:15,border:"1px solid rgba(255,255,255,0.07)",marginBottom:22}}>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,lineHeight:1.6,fontStyle:"italic",color:"var(--cream)"}}>{t}</p>
+      </div>
+      <button className="btn" onClick={onDone} style={{width:"100%",padding:"15px",borderRadius:11,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Done ✓</button>
+    </div>
+  );
+}
+
+// ─── PHONE TASK ──────────────────────────────────────────────
+function PhoneCard({onDone}){
+  const [t]=useState(()=>rnd(PHONE_TASKS));
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:12}}>📱</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--ash)",marginBottom:7}}>PHONE TASK</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,marginBottom:18}}>Pick Up Your Phone</h3>
+      <div style={{padding:"22px",background:"rgba(255,255,255,0.03)",borderRadius:15,border:"1px solid rgba(255,255,255,0.07)",marginBottom:22}}>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,lineHeight:1.6,fontStyle:"italic",color:"var(--cream)"}}>{t}</p>
+      </div>
+      <button className="btn" onClick={onDone} style={{width:"100%",padding:"15px",borderRadius:11,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Done ✓</button>
+    </div>
+  );
+}
+
+// ─── SECRET CARD ─────────────────────────────────────────────
+function SecretCard({p1,p2,onDone}){
+  const [c]=useState(()=>rnd(SECRET_CARDS));
+  const [revealed,setR]=useState(false);
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontSize:36,marginBottom:12,animation:"pulse 2s ease infinite",display:"inline-block"}}>🤫</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"#A78BFA",marginBottom:7}}>SECRET CARD</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,marginBottom:18}}>{c.title}</h3>
+      <div style={{padding:"22px",background:"rgba(167,139,250,0.08)",borderRadius:15,border:"1px solid rgba(167,139,250,0.18)",marginBottom:22,cursor:"pointer",minHeight:90,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={()=>setR(true)}>
+        {revealed?<p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,lineHeight:1.65,fontStyle:"italic",color:"var(--cream)"}}>{inj(c.ins,p1,p2)}</p>
+          :<p style={{fontFamily:"'DM Mono',monospace",fontSize:10,color:"rgba(167,139,250,0.38)",letterSpacing:2}}>TAP TO REVEAL</p>}
+      </div>
+      {revealed&&<button className="btn fade-in" onClick={onDone} style={{width:"100%",padding:"15px",borderRadius:11,background:"linear-gradient(135deg,#A78BFA,var(--ember))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Secret Accepted ✓</button>}
+    </div>
+  );
+}
+
+// ─── SPIN BOTTLE ─────────────────────────────────────────────
+function SpinBottle({p1,p2,onDone}){
+  const [spin,setSpin]=useState(false);
+  const [res,setRes]=useState(null);
+  const [deg,setDeg]=useState(0);
+  const [tot,setTot]=useState(0);
+  const go=()=>{
+    if(spin)return; setSpin(true);setRes(null);
+    const x=1080+Math.floor(Math.random()*720),nd=tot+x;setTot(nd);setDeg(nd);
+    setTimeout(()=>{setRes({p1z:rnd(BOTTLE_ZONES),p2z:rnd(BOTTLE_ZONES)});setSpin(false);},2600);
+  };
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--ember)",marginBottom:7}}>SPIN THE BOTTLE</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:700,marginBottom:20}}>Let Fate Decide</h3>
+      <div style={{position:"relative",margin:"0 auto 20px",width:180,height:180}}>
+        {BOTTLE_ZONES.slice(0,8).map((z,i)=>{const a=(i/8)*360-90,rd=a*Math.PI/180;return<div key={i} style={{position:"absolute",left:90+76*Math.cos(rd),top:90+76*Math.sin(rd),transform:"translate(-50%,-50%)",fontFamily:"'DM Mono',monospace",fontSize:7,color:"var(--smoke)",whiteSpace:"nowrap"}}>{z}</div>;})}
+        <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{fontSize:58,display:"inline-block",transform:`rotate(${deg}deg)`,transition:spin?"transform 2.6s cubic-bezier(0.17,0.67,0.16,0.99)":"none",filter:"drop-shadow(0 0 18px rgba(255,77,28,0.4))"}}>🍾</div>
+        </div>
+      </div>
+      {!spin&&!res&&<button className="btn" onClick={go} style={{padding:"13px 44px",borderRadius:50,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700,boxShadow:"0 6px 28px rgba(255,77,28,0.4)",marginBottom:14}}>Spin 🍾</button>}
+      {spin&&<p style={{color:"var(--silk)",fontStyle:"italic",fontSize:17}}>Spinning…</p>}
+      {res&&!spin&&(
+        <div className="fade-in">
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
+            {[[p1,res.p1z],[p2,res.p2z]].map(([name,zone],i)=>(
+              <div key={i} style={{padding:"14px 18px",background:"rgba(255,77,28,0.08)",borderRadius:13,border:"1px solid rgba(255,77,28,0.18)"}}>
+                <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:3,color:"var(--ember)",marginBottom:3}}>{name.toUpperCase()}</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,marginBottom:5}}>{zone}</div>
+                <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontStyle:"italic",color:"var(--blush)"}}>{BOTTLE_ACTIONS[zone]}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{display:"flex",gap:9}}>
+            <button className="btn" onClick={go} style={{flex:1,padding:"11px",borderRadius:11,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.09)",color:"var(--silk)",fontSize:15}}>Again</button>
+            <button className="btn" onClick={onDone} style={{flex:2,padding:"11px",borderRadius:11,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:17,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Done ✓</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── FATE CARDS ──────────────────────────────────────────────
+function FateCards({p1,p2,usedFate,onDone}){
+  const [d]=useState(()=>{const a=FATE_CARDS.filter(c=>!usedFate.includes(c.id));return a.length?rnd(a):null;});
+  const [flip,setF]=useState(false);
+  if(!d)return<div style={{padding:36,textAlign:"center",color:"var(--silk)"}}>No fate cards remaining…</div>;
+  return(
+    <div className="fade-in" style={{padding:"18px 20px",textAlign:"center"}}>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--gold)",marginBottom:7}}>CARDS OF FATE</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:700,marginBottom:20}}>Your Fate Awaits</h3>
+      <div className="card-scene" style={{height:240,marginBottom:20}}>
+        <div className={`card-wrap card-legendary${flip?" flipped":""}`} style={{height:240}} onClick={()=>setF(true)}>
+          <div className="card-face" style={{background:"linear-gradient(145deg,#1a1200,#2d1f00)",border:"2px solid rgba(201,149,42,0.38)",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+            <div style={{fontSize:44,animation:"pulse 2s infinite"}}>✦</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:15,color:"var(--gold)",opacity:0.55,marginTop:10}}>Tap to draw your fate</div>
+          </div>
+          <div className="card-face card-rear" style={{background:"linear-gradient(145deg,#1a1200,#2d1f00)",border:"2px solid rgba(201,149,42,0.38)",padding:24,display:"flex",flexDirection:"column"}}>
+            <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:3,color:"var(--gold)",marginBottom:10}}>{d.type?.toUpperCase()}</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,marginBottom:12}}>{d.title}</div>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,lineHeight:1.65,fontStyle:"italic",color:"var(--cream)",flex:1}}>{inj(d.ins,p1,p2)}</p>
+            <div style={{marginTop:12,fontFamily:"'DM Mono',monospace",fontSize:10,color:"var(--gold)",textAlign:"right"}}>+{d.pts} pts</div>
+          </div>
+        </div>
+      </div>
+      {flip&&<button className="btn fade-in" onClick={()=>onDone(d.id,d.pts)} style={{width:"100%",padding:"15px",borderRadius:11,background:"linear-gradient(135deg,var(--gold),var(--ember))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700}}>✓ Fate Accepted</button>}
+    </div>
+  );
+}
+
+// ─── LOADING CARD ────────────────────────────────────────────
+function LoadingCard(){
+  return(
+    <div style={{padding:"60px 24px",textAlign:"center"}}>
+      <div style={{fontSize:42,marginBottom:18,display:"inline-block",animation:"slowHB 2.2s ease-in-out infinite"}}>❤️‍🔥</div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontStyle:"italic",color:"var(--silk)",animation:"pulse 1.5s ease infinite"}}>SOULFLARE is crafting your card…</div>
+    </div>
+  );
+}
+
+// ─── ENERGY PANEL ────────────────────────────────────────────
+function EnergyPanel({energy,ct,onBack}){
+  return(
+    <div className="screen fade-in" style={{minHeight:"100vh",padding:"40px 22px"}}>
+      <button className="btn" onClick={onBack} style={{background:"none",border:"1px solid rgba(255,255,255,0.09)",borderRadius:8,padding:"7px 14px",color:"var(--ash)",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:1,marginBottom:22}}>← Back</button>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:30,marginBottom:4}}>Relationship Energy</h3>
+      <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",color:"var(--silk)",marginBottom:22,fontSize:15}}>Built through every moment shared tonight.</p>
+      <EnergyBars energy={energy}/>
+      <div style={{marginTop:22,padding:"18px",background:"rgba(255,255,255,0.03)",borderRadius:13,border:"1px solid rgba(255,255,255,0.05)",textAlign:"center"}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:3,color:"var(--gold)",marginBottom:10}}>YOUR COUPLE TYPE</div>
+        <div style={{fontSize:38,marginBottom:6}}>{ct.emoji}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:ct.color}}>{ct.title}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOADER SCREEN ───────────────────────────────────────────
+function Loader({onDone}){
+  const [prog,setP]=useState(0);
+  const [lv,setLv]=useState(false);
+  const [tv,setTv]=useState(false);
+  const [fading,setFad]=useState(false);
+  const letters=["S","O","U","L","F","L","A","R","E"];
+  useEffect(()=>{
+    const lt=setTimeout(()=>setLv(true),600);
+    const tt=setTimeout(()=>setTv(true),1800);
+    [[300,18],[600,34],[900,52],[1200,67],[1600,80],[2000,92],[2600,100]].forEach(([d,p])=>setTimeout(()=>setP(p),d));
+    const ft=setTimeout(()=>setFad(true),2900);
+    const dt=setTimeout(onDone,3500);
+    return()=>[lt,tt,ft,dt].forEach(clearTimeout);
+  },[]);
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:100,background:"var(--night)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",animation:fading?"loaderOut 0.6s ease forwards":"none"}}>
+      <div style={{position:"absolute",width:320,height:320,borderRadius:"50%",background:"radial-gradient(circle,rgba(255,77,28,0.12) 0%,transparent 70%)",pointerEvents:"none"}}/>
+      <div style={{fontSize:86,marginBottom:28,lineHeight:1,animation:"slowHB 2.2s ease-in-out infinite",display:"inline-block"}}>❤️‍🔥</div>
+      <div style={{display:"flex",gap:1,marginBottom:12}}>
+        {letters.map((l,i)=>(
+          <span key={i} style={{fontFamily:"'Playfair Display',serif",fontSize:62,fontWeight:900,lineHeight:1,background:"linear-gradient(160deg,var(--gold-light) 0%,var(--ember) 60%,#FF2200 100%)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",opacity:lv?1:0,transform:lv?"translateY(0) scale(1)":"translateY(14px) scale(0.8)",transition:`opacity 0.45s ease ${i*0.065}s,transform 0.45s cubic-bezier(0.34,1.56,0.64,1) ${i*0.065}s`,display:"inline-block",filter:lv?"drop-shadow(0 0 10px rgba(255,100,30,0.4))":"none"}}>{l}</span>
+        ))}
+      </div>
+      <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontStyle:"italic",color:"var(--silk)",letterSpacing:1,opacity:tv?1:0,transform:tv?"translateY(0)":"translateY(8px)",transition:"opacity 0.8s ease,transform 0.8s ease",marginBottom:48}}>The Couple's Game</div>
+      <div style={{width:190}}>
+        <div style={{height:2,background:"rgba(255,255,255,0.06)",borderRadius:2,overflow:"hidden"}}>
+          <div style={{height:"100%",borderRadius:2,background:"linear-gradient(90deg,var(--ember),var(--gold))",width:`${prog}%`,transition:"width 0.4s cubic-bezier(0.4,0,0.2,1)",boxShadow:"0 0 10px rgba(255,77,28,0.6)"}}/>
+        </div>
+        <div style={{marginTop:8,textAlign:"center",fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:3,color:"var(--smoke)"}}>{prog<100?"IGNITING…":"READY ✦"}</div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SPLASH ──────────────────────────────────────────────────
+function Splash({onStart}){
+  return(
+    <div className="screen fade-in" style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 24px",textAlign:"center"}}>
+      <div style={{marginBottom:18,fontSize:60,animation:"slowHB 2.2s ease-in-out infinite",display:"inline-block"}}>❤️‍🔥</div>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:5,color:"var(--ember)",marginBottom:14}}>— THE COUPLE'S GAME —</div>
+      <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:72,fontWeight:900,lineHeight:0.92,marginBottom:10,background:"linear-gradient(160deg,var(--gold-light),var(--ember),#FF2200)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",letterSpacing:-1}}>SOUL<br/><em>FLARE</em></h1>
+      <p style={{color:"var(--silk)",fontSize:17,fontStyle:"italic",maxWidth:270,lineHeight:1.6,marginBottom:16}}>A card game that ignites the fire between you.</p>
+      <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:"var(--smoke)",marginBottom:44}}>✨ EASY → ❤️ LOVE → 🔥 CRAZY LOVE</div>
+      <button className="btn" onClick={onStart} style={{background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontWeight:600,padding:"15px 52px",borderRadius:50,boxShadow:"0 8px 36px rgba(255,77,28,0.42)",letterSpacing:1,marginBottom:14}}>Begin the Night</button>
+      <p style={{color:"var(--smoke)",fontSize:12,fontFamily:"'DM Mono',monospace"}}>24 rounds · 3 phases · 1 unforgettable night</p>
+    </div>
+  );
+}
+
+// ─── SETUP — 2 steps (no mode selection!) ────────────────────
+function Setup({onBegin}){
+  const [p1,setP1]=useState("");
+  const [p2,setP2]=useState("");
+  const [ai,setAi]=useState(false);
+  const [tl,setTl]=useState("NEWLY_DATING");
+  const [step,setStep]=useState(0);
+  const inp={background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:11,padding:"13px 18px",color:"var(--cream)",fontFamily:"'Cormorant Garamond',serif",fontSize:19,width:"100%",outline:"none",transition:"border-color 0.2s",WebkitAppearance:"none"};
+  const fi=e=>{e.target.style.borderColor="var(--ember)";};
+  const fo=e=>{e.target.style.borderColor="rgba(255,255,255,0.1)";};
+
+  const steps=[
+    // Step 0 — names + AI
+    <div key={0} className="fade-in">
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--ember)",marginBottom:7}}>STEP 1 OF 2</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:700}}>Who's Playing?</h2>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:14,marginBottom:24}}>
+        {[["Player 1 name",p1,setP1,"🔥 FIRST FLAME"],["Player 2 name",p2,setP2,"✦ SECOND FLAME"]].map(([ph,val,set,lbl],i)=>(
+          <div key={i}>
+            <label style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:3,color:"var(--ash)",display:"block",marginBottom:7}}>{lbl}</label>
+            <input style={inp} placeholder={ph} value={val} onChange={e=>set(e.target.value)} onFocus={fi} onBlur={fo}/>
+          </div>
+        ))}
+      </div>
+      <div style={{marginBottom:22,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 18px",background:"rgba(255,77,28,0.05)",borderRadius:13,border:"1px solid rgba(255,77,28,0.14)"}}>
+        <div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:600}}>✦ AI Card Magic</div>
+          <div style={{fontSize:12,color:"var(--ash)",fontStyle:"italic"}}>Personalized cards using your names</div>
+        </div>
+        <div onClick={()=>setAi(v=>!v)} style={{width:48,height:26,borderRadius:13,background:ai?"var(--ember)":"var(--smoke)",position:"relative",cursor:"pointer",transition:"background 0.3s",flexShrink:0}}>
+          <div style={{position:"absolute",top:3,left:ai?24:4,width:20,height:20,borderRadius:"50%",background:"#fff",transition:"left 0.3s",boxShadow:"0 2px 6px rgba(0,0,0,0.3)"}}/>
+        </div>
+      </div>
+      <button className="btn" onClick={()=>{if(!p1.trim()||!p2.trim())return alert("Both names are required ❤️‍🔥");setStep(1);}} style={{width:"100%",padding:"15px",borderRadius:13,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Continue →</button>
+    </div>,
+
+    // Step 1 — relationship stage
+    <div key={1} className="fade-in">
+      <div style={{textAlign:"center",marginBottom:28}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:4,color:"var(--ember)",marginBottom:7}}>STEP 2 OF 2</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700}}>Your Relationship</h2>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontStyle:"italic",color:"var(--silk)",marginTop:7}}>This shapes the game to fit your journey.</p>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:9,marginBottom:24}}>
+        {Object.entries(TIMELINE_CFG).map(([key,t])=>(
+          <button key={key} className="btn" onClick={()=>setTl(key)} style={{padding:"13px 18px",borderRadius:13,textAlign:"left",background:tl===key?"rgba(255,77,28,0.1)":"rgba(255,255,255,0.03)",border:`1px solid ${tl===key?"rgba(255,77,28,0.5)":"rgba(255,255,255,0.07)"}`,color:tl===key?"var(--cream)":"var(--ash)",transition:"all 0.18s",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <span style={{fontFamily:"'Playfair Display',serif",fontSize:18}}>{t.emoji} {t.label}</span>
+            {tl===key&&<span style={{color:"var(--ember)"}}>✓</span>}
+          </button>
+        ))}
+      </div>
+      <div style={{marginBottom:10,padding:"10px 16px",background:"rgba(255,77,28,0.05)",borderRadius:11,border:"1px solid rgba(255,77,28,0.1)"}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:2,color:"var(--ember)",marginBottom:4}}>YOUR JOURNEY TONIGHT</div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {["✨ Easy","❤️ Love","🔥 Crazy"].map((s,i)=>(
+            <React.Fragment key={i}>
+              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,color:"var(--silk)"}}>{s}</span>
+              {i<2&&<span style={{color:"var(--smoke)",fontSize:11}}>→</span>}
+            </React.Fragment>
+          ))}
+        </div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:12,color:"var(--smoke)",fontStyle:"italic",marginTop:4}}>Levels unlock automatically as you play</div>
+      </div>
+      <div style={{display:"flex",gap:9}}>
+        <button className="btn" onClick={()=>setStep(0)} style={{flex:1,padding:"13px",borderRadius:11,background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",color:"var(--ash)",fontSize:16}}>← Back</button>
+        <button className="btn" onClick={()=>onBegin({p1:p1.trim(),p2:p2.trim(),ai,tl})} style={{flex:2,padding:"13px",borderRadius:11,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:17,fontFamily:"'Playfair Display',serif",fontWeight:700}}>Light the Fire ❤️‍🔥</button>
+      </div>
+    </div>,
+  ];
+
+  return(
+    <div className="screen fade-in" style={{minHeight:"100vh",padding:"44px 22px",maxWidth:460,margin:"0 auto"}}>
+      <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:28}}>
+        {[0,1].map(i=><div key={i} style={{width:i===step?24:8,height:8,borderRadius:4,background:i===step?"var(--ember)":i<step?"rgba(255,77,28,0.4)":"var(--smoke)",transition:"all 0.3s ease"}}/>)}
+      </div>
+      {steps[step]}
+    </div>
+  );
+}
+
+// ─── FINAL / AFTERGLOW ───────────────────────────────────────
+function Final({p1,p2,pts,energy,tl,onRestart}){
+  const award=calcTitle(pts);
+  const ct=coupleType(energy);
+  const compat=Math.min(100,46+Math.floor(pts/20));
+  const [story,setStory]=useState("Weaving your story…");
+  const conf=Array.from({length:22},(_,i)=>({id:i,clr:["var(--ember)","var(--gold)","#F472B6","#A78BFA"][i%4],left:`${Math.random()*100}%`,del:`${Math.random()*2}s`,sz:`${6+Math.random()*9}px`}));
+  useEffect(()=>{
+    (async()=>{
+      try{
+        const r=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:160,
+            system:"You are the SOULFLARE narrator. Write a single poetic 2-sentence story about the couple's journey tonight. Use their names. Cinematic and romantic. No hashtags.",
+            messages:[{role:"user",content:`Players:${p1} and ${p2}. Points:${pts}. Couple type:${ct.title}. Relationship:${tl}. Write their story.`}]})});
+        const d=await r.json();
+        setStory(d.content?.[0]?.text||`${p1} and ${p2} lit something unforgettable beneath the SOULFLARE flame.`);
+      }catch{setStory(`${p1} and ${p2} lit something unforgettable beneath the SOULFLARE flame.`);}
+    })();
+  },[]);
+  return(
+    <div className="screen fade-in" style={{minHeight:"100vh",padding:"40px 22px",display:"flex",flexDirection:"column",alignItems:"center"}}>
+      {conf.map(c=><div key={c.id} style={{position:"fixed",top:0,left:c.left,width:c.sz,height:c.sz,background:c.clr,borderRadius:2,animation:`confetti ${2+Math.random()*3}s ease ${c.del} forwards`,zIndex:0}}/>)}
+      <div style={{position:"relative",zIndex:1,maxWidth:400,width:"100%",textAlign:"center"}}>
+        <div style={{fontSize:68,marginBottom:14,animation:"slowHB 2.2s ease infinite",display:"inline-block"}}>{ct.emoji}</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:5,color:"var(--ember)",marginBottom:8}}>SOULFLARE AFTERGLOW</div>
+        <h2 style={{fontFamily:"'Playfair Display',serif",fontSize:38,fontWeight:900,background:"linear-gradient(135deg,var(--gold-light),var(--ember))",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",marginBottom:3}}>{award.emoji} {award.title}</h2>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:ct.color,fontStyle:"italic",marginBottom:3}}>{ct.title}</div>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:26,color:"var(--gold)",marginBottom:22}}>{pts} pts</div>
+
+        {/* Compat ring */}
+        <div style={{display:"flex",justifyContent:"center",marginBottom:24}}>
+          <div style={{width:88,height:88,borderRadius:"50%",background:`conic-gradient(var(--ember) ${compat*3.6}deg,rgba(255,255,255,0.05) 0deg)`,display:"flex",alignItems:"center",justifyContent:"center",animation:"compatPop 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.3s both"}}>
+            <div style={{width:68,height:68,borderRadius:"50%",background:"var(--night-2)",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:18,color:"var(--ember)",fontWeight:700,lineHeight:1}}>{compat}%</div>
+              <div style={{fontFamily:"'DM Mono',monospace",fontSize:6,color:"var(--ash)",letterSpacing:1}}>SYNC</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Energy */}
+        <div style={{background:"rgba(255,255,255,0.02)",borderRadius:14,border:"1px solid rgba(255,255,255,0.05)",padding:"14px 18px",marginBottom:18}}>
+          <EnergyBars energy={energy}/>
+        </div>
+
+        {/* AI story */}
+        <div style={{padding:"18px 20px",background:"rgba(255,255,255,0.03)",borderRadius:14,border:"1px solid rgba(255,255,255,0.05)",marginBottom:18}}>
+          <div style={{fontFamily:"'DM Mono',monospace",fontSize:8,letterSpacing:3,color:"var(--gold)",marginBottom:8}}>✦ YOUR STORY TONIGHT</div>
+          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,lineHeight:1.75,fontStyle:"italic",color:"var(--blush)"}}>{story}</p>
+        </div>
+
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,lineHeight:1.7,color:"var(--silk)",fontStyle:"italic",marginBottom:28}}>"Some flames fade. Others become unforgettable."</p>
+        <button className="btn" onClick={onRestart} style={{padding:"15px 44px",borderRadius:50,background:"linear-gradient(135deg,var(--ember),var(--gold))",color:"#fff",fontSize:19,fontFamily:"'Playfair Display',serif",fontWeight:700,boxShadow:"0 8px 36px rgba(255,77,28,0.4)"}}>Play Again ❤️‍🔥</button>
+      </div>
+    </div>
+  );
+}
+
+// ─── MAIN GAME SCREEN ────────────────────────────────────────
+function Game({config,onEnd}){
+  const {p1,p2,ai,tl}=config;
+
+  const [round,setRound]=useState(1);
+  const [pts,setPts]=useState(0);
+  const [usedCards,setUsed]=useState([]);
+  const [usedFate,setUsedF]=useState([]);
+  const [card,setCard]=useState(null);
+  const [ctype,setCtype]=useState(null);
+  const [loading,setLoading]=useState(false);
+  const [toast,setToast]=useState(null);
+  const [menu,setMenu]=useState(false);
+  const [ePan,setEPan]=useState(false);
+  const [energy,setEnergy]=useState(mkE);
+  const [narrator,setNar]=useState(null);
+  const [legEv,setLeg]=useState(null);
+  const [legBonus,setLB]=useState(0);
+  const [dual,setDual]=useState(false);
+  const [unlocks,setUnlocks]=useState(mkU);
+  const [newUnlock,setNU]=useState(null);
+  const [modeTransition,setMT]=useState(null); // mode name to show transition for
+  const prevMode=useRef(null);
+
+  const mode=getModeForRound(round);
+  const modeCfg=MODE_CFG[mode];
+  const ct=coupleType(energy);
+  const {title}=calcTitle(pts);
+
+  // Detect mode change → show transition overlay
+  useEffect(()=>{
+    if(prevMode.current&&prevMode.current!==mode){
+      setMT(mode);
+    }
+    prevMode.current=mode;
+  },[mode]);
+
+  const showT=(p)=>{setToast(p);setTimeout(()=>setToast(null),1800);};
+  const doE=(cat)=>setEnergy(prev=>addE(prev,cat));
+
+  const checkUnlocks=(np)=>{
+    setUnlocks(prev=>{
+      const n=applyU(np,prev);
+      if(n.legendaryDeck&&!prev.legendaryDeck)setNU("✦ Legendary Deck Unlocked!");
+      else if(n.afterDarkMode&&!prev.afterDarkMode)setNU("🌙 After Dark Mode Unlocked!");
+      else if(n.chaosMode&&!prev.chaosMode)setNU("🔥 Chaos Mode Unlocked!");
+      return n;
+    });
+  };
+
+  const loadRound=useCallback(async(r)=>{
+    setLoading(true);setCard(null);setDual(false);
+    const m=getModeForRound(r);
+    const mFlow=FLOW[m];
+    // round within the current phase (1-indexed, 0-based in array)
+    const phaseRound=(m==="EASY"?r-1:m==="LOVE"?r-9:r-17);
+    const type=mFlow[phaseRound%mFlow.length];
+    setCtype(type);
+
+    // Maybe legendary
+    if(!["narrator","dual"].includes(type)){
+      const l=maybeL();
+      if(l){setLeg(l);setLB(l.bonus);}
+    }
+
+    if(["bottle","fate","env","phone","secret"].includes(type)){setLoading(false);return;}
+
+    if(type==="narrator"){
+      setNar(rnd(NARRATOR[modeCfg.narType]||NARRATOR.fun));
+      setLoading(false);return;
+    }
+    if(type==="dual"){setDual(true);setLoading(false);return;}
+
+    if(type==="activity"){
+      const av=ACTIVITIES.filter(a=>a.mode===m&&!usedCards.includes(a.id));
+      if(av.length){const p=rnd(av);setCard({...p,ins:inj(p.ins,p1,p2),fu:p.fu?inj(p.fu,p1,p2):null});setLoading(false);return;}
+    }
+    if(type==="puzzle"){
+      const av=PUZZLES.filter(p=>p.mode===m&&!usedCards.includes(p.id));
+      if(av.length){const p=rnd(av);setCard({...p,ins:inj(p.ins,p1,p2),fu:p.fu?inj(p.fu,p1,p2):null});setLoading(false);return;}
+    }
+
+    // Regular card
+    const maxH=m==="EASY"?3:m==="LOVE"?6:10;
+    const av=getCards(m,usedCards,maxH);
+    if(!av.length){setCard({title:"Every Card Burned!",ins:"Your connection tonight has been extraordinary. Simply be present with each other.",rar:"legendary",cat:"fun",pts:100});setLoading(false);return;}
+    let c=pickW(av);
+    c=ai?await enhanceCard(c,p1,p2):{...c,ins:inj(c.ins,p1,p2),fu:inj(c.fu,p1,p2)};
+    setCard(c);
+    speak(c.ins);
+    setLoading(false);
+  },[usedCards,p1,p2,ai]);
+
+  useEffect(()=>{loadRound(1);},[]);
+
+  const complete=(p=10,cat="fun",skipUsed=false)=>{
+    if(card?.id&&!skipUsed)setUsed(prev=>[...prev,card.id]);
+    const base=p||card?.pts||10;
+    const total=base+legBonus;
+    setLB(0);
+    const np=pts+total;
+    setPts(np);
+    checkUnlocks(np);
+    doE(cat||card?.cat||"fun");
+    showT(total);
+    if(round>=TOTAL_ROUNDS){setTimeout(()=>onEnd({pts:np,energy,tl}),500);return;}
+    const nr=round+1;setRound(nr);loadRound(nr);
+  };
+
+  const skip=()=>{
+    setLeg(null);setLB(0);
+    if(round>=TOTAL_ROUNDS){onEnd({pts,energy,tl});return;}
+    const nr=round+1;setRound(nr);loadRound(nr);
+  };
+
+  if(ePan)return<EnergyPanel energy={energy} ct={ct} onBack={()=>setEPan(false)}/>;
+
+  if(menu)return(
+    <div className="screen fade-in" style={{minHeight:"100vh",padding:36,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:14}}>
+      <div style={{fontSize:42,marginBottom:4,animation:"slowHB 2.2s ease infinite",display:"inline-block"}}>❤️‍🔥</div>
+      <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:30,marginBottom:6}}>Paused</h3>
+      <div style={{padding:"14px 22px",background:"rgba(255,255,255,0.03)",borderRadius:13,border:"1px solid rgba(255,255,255,0.05)",marginBottom:6,width:260,textAlign:"center"}}>
+        <div style={{fontFamily:"'DM Mono',monospace",fontSize:9,letterSpacing:2,color:"var(--gold)",marginBottom:3}}>SCORE</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:700}}>{pts} pts</div>
+        <div style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontStyle:"italic",color:ct.color,marginTop:3}}>{ct.emoji} {ct.title}</div>
+      </div>
+      {[
+        ["Resume",        ()=>setMenu(false),              "var(--ember)"],
+        ["View Energy",   ()=>{setMenu(false);setEPan(true);},"rgba(255,255,255,0.06)"],
+        ["End Game",      ()=>onEnd({pts,energy,tl}),       "var(--smoke)"],
+      ].map(([l,fn,bg],i)=>(
+        <button key={i} className="btn" onClick={fn} style={{width:230,padding:"13px",borderRadius:11,background:bg,color:"#fff",fontSize:17,fontFamily:"'Playfair Display',serif"}}>{l}</button>
+      ))}
+    </div>
+  );
+
+  return(
+    <div className="screen">
+      {/* Mode transition overlay */}
+      {modeTransition&&<ModeTransition mode={modeTransition} onDone={()=>setMT(null)}/>}
+      {/* Narrator */}
+      {narrator&&!modeTransition&&<NarratorBanner line={narrator} onDone={()=>setNar(null)}/>}
+      {/* Legendary */}
+      {legEv&&!modeTransition&&!narrator&&<LegOverlay ev={legEv} onDone={()=>setLeg(null)}/>}
+      {/* Unlock toast */}
+      {newUnlock&&<div onClick={()=>setNU(null)} style={{position:"fixed",top:"calc(env(safe-area-inset-top,0px) + 74px)",left:"50%",transform:"translateX(-50%)",background:"linear-gradient(135deg,var(--gold),#A78BFA)",color:"#fff",fontFamily:"'DM Mono',monospace",fontSize:10,letterSpacing:2,padding:"9px 22px",borderRadius:50,zIndex:998,boxShadow:"0 6px 28px rgba(167,139,250,0.5)",animation:"unlockIn 0.4s ease forwards",cursor:"pointer",whiteSpace:"nowrap"}}>{newUnlock} ✦</div>}
+
+      <HUD round={round} pts={pts} mode={mode} p1={p1} p2={p2} energy={energy} ct={ct} onMenu={()=>setMenu(true)} onE={()=>setEPan(true)}/>
+      {toast&&<Toast pts={toast} onDone={()=>setToast(null)}/>}
+
+      <div style={{paddingBottom:"calc(env(safe-area-inset-bottom,0px) + 36px)",paddingTop:16}}>
+        {loading&&<LoadingCard/>}
+        {!loading&&narrator===null&&!modeTransition&&ctype==="bottle" &&<SpinBottle p1={p1} p2={p2} onDone={()=>complete(20,"chaos",true)}/>}
+        {!loading&&narrator===null&&!modeTransition&&ctype==="fate"   &&<FateCards p1={p1} p2={p2} usedFate={usedFate} onDone={(id,p)=>{if(id)setUsedF(prev=>[...prev,id]);complete(p||30,"revelation",true);}}/>}
+        {!loading&&narrator===null&&!modeTransition&&ctype==="env"    &&<EnvCard onDone={()=>complete(15,"fun",true)}/>}
+        {!loading&&narrator===null&&!modeTransition&&ctype==="phone"  &&<PhoneCard onDone={()=>complete(20,"intimacy",true)}/>}
+        {!loading&&narrator===null&&!modeTransition&&ctype==="secret" &&<SecretCard p1={p1} p2={p2} onDone={()=>complete(45,"trust",true)}/>}
+        {!loading&&narrator===null&&!modeTransition&&dual&&<DualChoice p1={p1} p2={p2} onChoose={(label,cat)=>{setDual(false);setCard({title:label,ins:`${p1} chose: "${label}". Take a moment to complete this challenge together.`,rar:"common",cat,pts:30});}}/>}
+        {!loading&&narrator===null&&!modeTransition&&card&&!dual&&!["bottle","fate","env","phone","secret"].includes(ctype)&&(
+          <CardDisplay card={card} p1={p1} p2={p2} mode={mode} onComplete={()=>complete(card.pts||10,card.cat||"fun")} onSkip={skip}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── ROOT APP ────────────────────────────────────────────────
+function App(){
+  const [screen,setScreen]=useState("loading");
+  const [config,setConfig]=useState(null);
+  const [finalData,setFD]=useState(null);
+
+  return(
+    <div style={{minHeight:"100%",background:"var(--night)",position:"relative"}}>
+      <Particles/>
+      {screen==="loading"&&<Loader onDone={()=>setScreen("splash")}/>}
+      {screen==="splash" &&<Splash onStart={()=>setScreen("setup")}/>}
+      {screen==="setup"  &&<Setup  onBegin={cfg=>{setConfig(cfg);setScreen("game");}}/>}
+      {screen==="game"   &&config&&<Game config={config} onEnd={d=>{setFD(d);setScreen("final");}}/>}
+      {screen==="final"  &&config&&finalData&&(
+        <Final p1={config.p1} p2={config.p2} pts={finalData.pts||0} energy={finalData.energy||mkE()} tl={config.tl}
+          onRestart={()=>{setConfig(null);setFD(null);setScreen("setup");}}/>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
