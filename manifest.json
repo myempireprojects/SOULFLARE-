@@ -1,0 +1,26 @@
+{
+  "name": "SOULFLARE ❤️‍🔥",
+  "short_name": "SOULFLARE",
+  "description": "The couples card game that ignites the fire between you.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0A0705",
+  "theme_color": "#FF4D1C",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["games", "lifestyle", "entertainment"],
+  "lang": "en"
+}
